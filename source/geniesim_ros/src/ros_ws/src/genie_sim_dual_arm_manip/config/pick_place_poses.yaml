@@ -1,0 +1,91 @@
+# Copyright (c) 2023-2026, AgiBot Inc. All Rights Reserved.
+# Author: Genie Sim Team
+# License: Mozilla Public License Version 2.0
+#
+# Named target poses for the dual-arm pick-and-place state machine
+# (genie_sim_dual_arm_manip). Values below are PLACEHOLDERS (safe, low-effort
+# joint angles) — replace them with real waypoints for your scene/task:
+#   1. Launch the sim + `ros2 launch genie_sim_moveit wbc.launch.py`.
+#   2. Drive the arm to the pose you want with RViz's motion-planning drag
+#      handles, or teleop.
+#   3. `ros2 topic echo /joint_states --once` and copy the arm_l_joint*/
+#      arm_r_joint* values (radians) into the matching state below.
+#
+# `arm_l_joints` / `arm_r_joints` order must match the order of the
+# corresponding `arm_l:` / `arm_r:` position lists in every state.
+# Joint names below match genie_sim_robot_model's Genie G2 crs/crsB xacro
+# (idx21-27_arm_l_joint1-7, idx61-67_arm_r_joint1-7) — update them if you
+# launched a different robot_model/arm combo.
+
+group_name: simple_arms
+joint_tolerance: 0.01
+
+arm_l_joints:
+  - idx21_arm_l_joint1
+  - idx22_arm_l_joint2
+  - idx23_arm_l_joint3
+  - idx24_arm_l_joint4
+  - idx25_arm_l_joint5
+  - idx26_arm_l_joint6
+  - idx27_arm_l_joint7
+
+arm_r_joints:
+  - idx61_arm_r_joint1
+  - idx62_arm_r_joint2
+  - idx63_arm_r_joint3
+  - idx64_arm_r_joint4
+  - idx65_arm_r_joint5
+  - idx66_arm_r_joint6
+  - idx67_arm_r_joint7
+
+# Leader joint names for the parallel-jaw grippers, published on
+# /joint_command. Same caveat as genie_sim_bringup/scripts/gripper_cmds.py:
+# verify against the bringup console log for your gripper (swiftpicker /
+# omnipicker) before trusting these defaults.
+gripper:
+  left_joint: gripper_l_active_joint
+  right_joint: gripper_r_active_joint
+  open_position: 0.0
+  close_position: 0.8
+
+states:
+  default:
+    arm_l: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    arm_r: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    gripper_l: open
+    gripper_r: open
+
+  pick_ready:
+    arm_l: [0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    arm_r: [-0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    gripper_l: open
+    gripper_r: open
+
+  pick:
+    arm_l: [0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
+    arm_r: [-0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
+    gripper_l: close
+    gripper_r: close
+    # Camera-based grasp pose goes here once perception is wired up: publish
+    # geometry_msgs/PoseStamped on ~/target_pose/pick/{left,right} and this
+    # state will use it instead of arm_l/arm_r above.
+    perception_override: true
+
+  hold:
+    arm_l: [0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    arm_r: [-0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    gripper_l: hold
+    gripper_r: hold
+
+  place_ready:
+    arm_l: [-0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    arm_r: [0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    gripper_l: hold
+    gripper_r: hold
+
+  place:
+    arm_l: [-0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
+    arm_r: [0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
+    gripper_l: open
+    gripper_r: open
+    perception_override: true

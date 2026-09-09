@@ -1,0 +1,34 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>genie_sim_dual_arm_manip</name>
+  <version>3.2.0</version>
+  <description>
+    High-level task orchestration for dual-arm pick-and-place on Genie G2.
+    Drives the `simple_arms` MoveIt planning group (see genie_sim_moveit)
+    through a small named-pose state machine (default, pick_ready, pick,
+    hold, place_ready, place) and the parallel-jaw grippers over
+    /joint_command. Target poses for the pick/place states can be
+    overridden at runtime by an external perception node — this package
+    does not implement perception itself.
+  </description>
+  <maintainer email="yangwendisheng@agibot.com" />
+  <license file="LICENSE">Mozilla Public License Version 2.0</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>std_srvs</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>geometry_msgs</exec_depend>
+  <exec_depend>moveit_msgs</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_cmake_gtest</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

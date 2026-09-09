@@ -34,6 +34,7 @@ the package is added to this table; the doc-coverage audit
 | `genie_sim_control` | ros2_control hardware interface + planar-base controller plugin | [README](src/ros_ws/src/genie_sim_ros_control/genie_sim_control/README.md) | [AGENTS](src/ros_ws/src/genie_sim_ros_control/genie_sim_control/AGENTS.md) |
 | `genie_sim_controllers` | ros2_control 4WS chassis servo + MPC (OSQP) + ServoBase strategies | [README](src/ros_ws/src/genie_sim_ros_control/genie_sim_controllers/README.md) | [AGENTS](src/ros_ws/src/genie_sim_ros_control/genie_sim_controllers/AGENTS.md) |
 | `genie_sim_planning` | Python chassis helpers + demo scripts (scheduled-for-refactor) | [README](src/ros_ws/src/genie_sim_planning/README.md) | [AGENTS](src/ros_ws/src/genie_sim_planning/AGENTS.md) |
+| `genie_sim_dual_arm_manip` | Dual-arm pick-and-place task orchestration (named-pose state machine driving `simple_arms` via MoveGroup) | [README](src/ros_ws/src/genie_sim_dual_arm_manip/README.md) | [AGENTS](src/ros_ws/src/genie_sim_dual_arm_manip/AGENTS.md) |
 
 ---
 
