@@ -1,0 +1,33 @@
+name: dual-arm-manip-demo
+root: /workspace
+
+windows:
+  - main:
+      layout: tiled
+      panes:
+        # Konsole 1: Simulation Bringup
+        - bringup:
+            - source devel/setup.bash
+            - ros2 launch genie_sim_bringup app.launch.py scene:=scene_dam_g2_op launcher_config:=launcher_ovrtx_isaac_physx headless:=false
+        
+        # Konsole 2: MoveIt WBC
+        - wbc:
+            - source devel/setup.bash
+            - ros2 launch genie_sim_moveit wbc.launch.py gripper:=omnipicker
+        
+        # Konsole 3: Dual Arm Manipulation
+        - manip:
+            - source devel/setup.bash
+            - ros2 launch genie_sim_dual_arm_manip manipulation.launch.py
+        
+        # Konsole 4: RQT Graph
+        - rqt:
+            - source devel/setup.bash
+            - rqt_graph
+        
+        # Konsole 5: Interaktives Terminal für Befehle
+        - CLI:
+            - source devel/setup.bash
+            - tmux send-keys -t :main.4 "ros2 service call /dual_arm_pick_place_task/run_cycle std_srvs/srv/Trigger {}"
+
+startup_pane: 4
