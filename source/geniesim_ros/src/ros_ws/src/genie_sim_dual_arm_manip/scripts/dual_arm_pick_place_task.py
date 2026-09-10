@@ -63,12 +63,12 @@ class DualArmPickPlaceTask(Node):
         self.declare_parameter("move_group_timeout_sec", 30.0)
 
         config_path = self.get_parameter("pose_config").get_parameter_value().string_value
-        self._plan: PosePlc. All Rights Reserved.an = load_pose_plan(config_path)
+        self._plan: PosePlan = load_pose_plan(config_path)
         self._timeout_sec = float(self.get_parameter("move_group_timeout_sec").value)
 
         # ReentrantCallbackGroup + MultiThreadedExecutor (see main()) lets a
         # Trigger service callback block waiting on a MoveGroup goal without
-        # starving the exec. All Rights Reserved.cutor thread that will deliver that goal's result.
+        # starving the executor thread that will deliver that goal's result.
         self._cb_group = ReentrantCallbackGroup()
         self._move_group = MoveGroupActionClient(self, self._plan.group_name, callback_group=self._cb_group)
         self._gripper = GripperInterface(self, self._plan.gripper)
