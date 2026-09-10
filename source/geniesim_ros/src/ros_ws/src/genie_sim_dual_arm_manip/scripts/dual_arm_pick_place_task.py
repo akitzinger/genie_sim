@@ -4,12 +4,25 @@
 # License: MIT
 """Dual-arm pick-and-place task orchestrator.
 
-Drives the `simple_arms` MoveIt planning group (see genie_sim_moveit)
-through a fixed sequence of named states — default, pick_ready, pick, hold,
-place_ready, place — sending one MoveGroup goal per transition and toggling
-the grippers over /joint_command. Each transition is also exposed as its
-own std_srvs/Trigger service so it can be triggered individually (e.g. from
+Drives a configurable MoveIt planning group (see genie_sim_moveit) —
+`wbc_fixed_headless` by default, i.e. torso + both arms — through a fixed
+sequence of named states — default, pick_ready, pick, pick_hold, place_hold,
+place_ready, place — sending one MoveGroup goal per transition and toggling the
+grippers over /joint_command. Each transition is also exposed as its own
+std_srvs/Trigger service so it can be triggered individually (e.g. from
 RViz's "Service Caller" panel) instead of only as a scripted sequence.
+
+Each state configures a full whole-body pose (body + head + both arms) in
+config/pick_place_poses.yaml, and each state may pick its own `group_name`
+(falling back to the top-level default) — only the sub-groups actually
+spanned by that group are sent as goal constraints, see
+pose_config.PosePlan.goal_joint_target.
+
+Transitions are only allowed in sequence — default -> pick_ready -> pick ->
+pick_hold -> place_hold -> place_ready -> place — one step at a time; `go_default` is always
+allowed regardless of the current state (see `task_states.ORDER` and
+`_check_transition`). Calling e.g. `go_pick` before `go_pick_ready` fails
+with a Trigger `success=false` response.
 
 Requires `move_group` to already be running (`ros2 launch genie_sim_moveit
 wbc.launch.py`) — this node is a client of the existing action server, it
@@ -35,6 +48,7 @@ Usage
 from __future__ import annotations
 
 import os
+import threading
 
 import rclpy
 from ament_index_python.packages import get_package_share_directory
@@ -47,7 +61,7 @@ from genie_sim_dual_arm_manip.gripper_interface import GripperInterface
 from genie_sim_dual_arm_manip.moveit_action_client import MoveGroupActionClient, MoveGroupError
 from genie_sim_dual_arm_manip.perception_interface import PerceptionOverride
 from genie_sim_dual_arm_manip.pose_config import PosePlan, load_pose_plan
-from genie_sim_dual_arm_manip.task_states import SEQUENCE, TaskState
+from genie_sim_dual_arm_manip.task_states import ORDER, SEQUENCE, TaskState
 
 
 class DualArmPickPlaceTask(Node):
@@ -65,6 +79,16 @@ class DualArmPickPlaceTask(Node):
         config_path = self.get_parameter("pose_config").get_parameter_value().string_value
         self._plan: PosePlan = load_pose_plan(config_path)
         self._timeout_sec = float(self.get_parameter("move_group_timeout_sec").value)
+
+        # Serializes transitions (both the `_current_state` order check and
+        # the execution itself) so two concurrently-triggered services can't
+        # race each other into an inconsistent state.
+        self._transition_lock = threading.Lock()
+        # Assumed pose at node startup — matches the scene's `init_joint_pos`
+        # (this package's `default` state should mirror it). There is no way
+        # to ask MoveIt "what named state is the robot currently in", so this
+        # is a bookkeeping assumption, not a read of true robot state.
+        self._current_state = TaskState.DEFAULT
 
         # ReentrantCallbackGroup + MultiThreadedExecutor (see main()) lets a
         # Trigger service callback block waiting on a MoveGroup goal without
@@ -119,31 +143,51 @@ class DualArmPickPlaceTask(Node):
             response.message = str(exc)
         return response
 
-    def _execute_state(self, state: TaskState) -> None:
-        target = self._plan.states[state]
-        self.get_logger().info(f"-> {state.value}")
-
-        if target.perception_override and self._perception.has_any_override(state):
-            link_poses = []
-            pose_l = self._perception.get_pose(state, "left")
-            pose_r = self._perception.get_pose(state, "right")
-            if pose_l is not None:
-                link_poses.append(("arm_l_end_link", pose_l))
-            if pose_r is not None:
-                link_poses.append(("arm_r_end_link", pose_r))
-            self._move_group.move_to_poses(link_poses, timeout_sec=self._timeout_sec)
-        else:
-            joint_names = self._plan.arm_l_joints + self._plan.arm_r_joints
-            positions = target.arm_l + target.arm_r
-            self._move_group.move_to_joint_targets(
-                joint_names,
-                positions,
-                tolerance=self._plan.joint_tolerance,
-                timeout_sec=self._timeout_sec,
+    def _check_transition(self, state: TaskState) -> None:
+        """Enforce ORDER: only the next state after `_current_state`, or DEFAULT from anywhere."""
+        if state == TaskState.DEFAULT:
+            return
+        next_state = ORDER[(ORDER.index(self._current_state) + 1) % len(ORDER)]
+        if state != next_state:
+            raise MoveGroupError(
+                f"invalid transition '{self._current_state.value}' -> '{state.value}'; "
+                f"expected '{next_state.value}' (or 'default')"
             )
 
-        self._gripper.apply("left", target.gripper_l)
-        self._gripper.apply("right", target.gripper_r)
+    def _execute_state(self, state: TaskState) -> None:
+        with self._transition_lock:
+            self._check_transition(state)
+            target = self._plan.states[state]
+            self.get_logger().info(f"-> {state.value} (group '{target.group_name}')")
+
+            if target.perception_override and self._perception.has_any_override(state):
+                link_poses = []
+                # Only constrain an arm's end-link pose when that arm is part of
+                # the configured planning group — otherwise move_group rejects it.
+                if self._plan.has_subgroup(target, "arm_l"):
+                    pose_l = self._perception.get_pose(state, "left")
+                    if pose_l is not None:
+                        link_poses.append(("arm_l_end_link", pose_l))
+                if self._plan.has_subgroup(target, "arm_r"):
+                    pose_r = self._perception.get_pose(state, "right")
+                    if pose_r is not None:
+                        link_poses.append(("arm_r_end_link", pose_r))
+                self._move_group.move_to_poses(
+                    link_poses, timeout_sec=self._timeout_sec, group_name=target.group_name
+                )
+            else:
+                joint_names, positions = self._plan.goal_joint_target(target)
+                self._move_group.move_to_joint_targets(
+                    joint_names,
+                    positions,
+                    tolerance=self._plan.joint_tolerance,
+                    timeout_sec=self._timeout_sec,
+                    group_name=target.group_name,
+                )
+
+            self._gripper.apply("left", target.gripper_l)
+            self._gripper.apply("right", target.gripper_r)
+            self._current_state = state
 
 
 def main():

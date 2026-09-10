@@ -8,7 +8,7 @@ windows:
         # Konsole 1: Simulation Bringup
         - bringup:
             - source devel/setup.bash
-            - ros2 launch genie_sim_bringup app.launch.py scene:=scene_dam_g2_op launcher_config:=launcher_ovrtx_isaac_physx headless:=false
+            - ros2 launch genie_sim_bringup app.launch.py scene:=scene_dam_g2_op launcher_config:=launcher_ovrtx_isaac_physx headless:=false #always_regenerate_robot_usd:=true
         
         # Konsole 2: MoveIt WBC
         - wbc:

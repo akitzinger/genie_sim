@@ -5,9 +5,9 @@
   <version>3.2.0</version>
   <description>
     High-level task orchestration for dual-arm pick-and-place on Genie G2.
-    Drives the `simple_arms` MoveIt planning group (see genie_sim_moveit)
+    Drives a configurable MoveIt planning group (see genie_sim_moveit)
     through a small named-pose state machine (default, pick_ready, pick,
-    hold, place_ready, place) and the parallel-jaw grippers over
+    pick_hold, place_hold, place_ready, place) and the parallel-jaw grippers over
     /joint_command. Target poses for the pick/place states can be
     overridden at runtime by an external perception node — this package
     does not implement perception itself.

@@ -2,9 +2,10 @@
 
 High-level task orchestration for dual-arm pick-and-place on Genie G2 —
 the layer above MoveIt that turns "plan/execute a trajectory" into
-"go pick up the thing". Drives the `simple_arms` planning group (see
-[genie_sim_moveit](../genie_sim_moveit)) through a small named-pose state
-machine and toggles the parallel-jaw grippers over `/joint_command`.
+"go pick up the thing". Drives a configurable MoveIt planning group (see
+[genie_sim_moveit](../genie_sim_moveit)) — `wbc_fixed_headless` (torso +
+both arms) by default — through a small named-pose state machine and
+toggles the parallel-jaw grippers over `/joint_command`.
 
 Source: [source/geniesim_ros/src/ros_ws/src/genie_sim_dual_arm_manip/](.)
 License: [MIT](LICENSE)
@@ -14,13 +15,24 @@ License: [MIT](LICENSE)
 ## States
 
 ```
-default → pick_ready → pick → hold → place_ready → place → default
+default → pick_ready → pick → pick_hold → place_hold → place_ready → place → default
 ```
 
-Each state has a target joint pose per arm (`config/pick_place_poses.yaml`)
-plus an open/close/hold command for each gripper. `pick` and `place` can
-optionally be driven by a live camera-estimated pose instead of the
-configured joint target — see "Perception hook" below.
+Transitions are only allowed one step at a time along this order —
+`go_pick` fails unless the task is currently at `pick_ready`. `go_default`
+is always allowed regardless of the current state, so you can always reset
+the sequence. `run_cycle` drives the whole sequence and satisfies this
+automatically.
+
+Each state configures a full whole-body target pose (torso `body:`, `head:`,
+`arm_l:`, `arm_r:` in `config/pick_place_poses.yaml`) plus an open/close/hold
+command for each gripper. Only the sub-groups actually spanned by that
+state's `group_name` are sent to `move_group` as goal constraints — the
+rest are loaded but ignored, so different transitions can use different
+planning groups (e.g. arm-only vs. whole-body) without editing every
+state's joint values. `pick` and `place` can optionally be driven by a live
+camera-estimated pose instead of the configured joint target — see
+"Perception hook" below.
 
 ## Prerequisites
 
@@ -42,7 +54,8 @@ ros2 launch genie_sim_dual_arm_manip manipulation.launch.py
 # trigger one state transition
 ros2 service call /dual_arm_pick_place_task/go_pick_ready std_srvs/srv/Trigger {}
 ros2 service call /dual_arm_pick_place_task/go_pick std_srvs/srv/Trigger {}
-ros2 service call /dual_arm_pick_place_task/go_hold std_srvs/srv/Trigger {}
+ros2 service call /dual_arm_pick_place_task/go_pick_hold std_srvs/srv/Trigger {}
+ros2 service call /dual_arm_pick_place_task/go_place_hold std_srvs/srv/Trigger {}
 ros2 service call /dual_arm_pick_place_task/go_place_ready std_srvs/srv/Trigger {}
 ros2 service call /dual_arm_pick_place_task/go_place std_srvs/srv/Trigger {}
 ros2 service call /dual_arm_pick_place_task/go_default std_srvs/srv/Trigger {}
@@ -62,8 +75,15 @@ stable; it would just call the same Trigger services.
 
 Edit [`config/pick_place_poses.yaml`](config/pick_place_poses.yaml). The
 shipped values are safe placeholders — capture real joint angles per state
-by driving the arm (RViz drag handles or teleop) into position and reading
-`ros2 topic echo /joint_states --once`.
+by driving the robot (RViz drag handles or teleop) into position and
+reading `ros2 topic echo /joint_states --once`. Each state may set its own
+`group_name:` (falling back to the top-level default when omitted) to any
+planning group defined in `genie_sim_moveit/config/genie.srdf.xacro`
+(`simple_arms`, `simple_torso`, `wbc_fixed_arm_l`, `wbc_fixed_headless`,
+`wbc_fixed`, …) — `pose_config._GROUP_SUBGROUPS` maps each one to the
+waist/torso/head/arm_l/arm_r sub-groups it spans (`body:`'s first 3 values
+are the waist, last 2 are the torso) and filters that state's goal
+constraints accordingly.
 
 ## Perception hook
 

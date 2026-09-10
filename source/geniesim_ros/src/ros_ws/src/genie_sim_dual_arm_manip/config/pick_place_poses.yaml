@@ -6,19 +6,45 @@
 # (genie_sim_dual_arm_manip). Values below are PLACEHOLDERS (safe, low-effort
 # joint angles) — replace them with real waypoints for your scene/task:
 #   1. Launch the sim + `ros2 launch genie_sim_moveit wbc.launch.py`.
-#   2. Drive the arm to the pose you want with RViz's motion-planning drag
+#   2. Drive the robot to the pose you want with RViz's motion-planning drag
 #      handles, or teleop.
-#   3. `ros2 topic echo /joint_states --once` and copy the arm_l_joint*/
-#      arm_r_joint* values (radians) into the matching state below.
+#   3. `ros2 topic echo /joint_states --once` and copy the body_joint*/
+#      head_joint*/arm_l_joint*/arm_r_joint* values (degrees) into the
+#      matching state below.
 #
-# `arm_l_joints` / `arm_r_joints` order must match the order of the
-# corresponding `arm_l:` / `arm_r:` position lists in every state.
-# Joint names below match genie_sim_robot_model's Genie G2 crs/crsB xacro
-# (idx21-27_arm_l_joint1-7, idx61-67_arm_r_joint1-7) — update them if you
-# launched a different robot_model/arm combo.
+# Every state configures the FULL whole-body pose (body + head + both
+# arms), but only the sub-groups spanned by that state's `group_name` (see
+# pose_config._GROUP_SUBGROUPS) are actually sent to move_group as goal
+# constraints. `body:`'s first 3 values are the waist (idx01-03_body_joint,
+# simple_waist) and the last 2 are the torso (idx04-05_body_joint,
+# simple_torso) -- so e.g. `group_name: simple_torso` sends only the last 2
+# `body:` values. Each state may set its own `group_name:`, falling back to
+# the top-level default below when omitted -- e.g. a transition that only
+# moves the arms can use `simple_arms` (faster IK, no redundant torso DOF),
+# one that only tilts the torso can use `simple_torso`, and one that also
+# needs the waist uses `wbc_fixed_headless`.
+#
+# `body_joints` / `head_joints` / `arm_l_joints` / `arm_r_joints` order
+# must match the order of the corresponding `body:` / `head:` / `arm_l:` /
+# `arm_r:` position lists in every state. Joint names below match
+# genie_sim_robot_model's Genie G2 crs/crsB xacro (idx01-05_body_joint1-5,
+# idx11-13_head_joint1-3, idx21-27_arm_l_joint1-7, idx61-67_arm_r_joint1-7)
+# — update them if you launched a different robot_model/arm combo.
 
-group_name: simple_arms
+group_name: wbc_fixed_headless
 joint_tolerance: 0.01
+
+body_joints:
+  - idx01_body_joint1
+  - idx02_body_joint2
+  - idx03_body_joint3
+  - idx04_body_joint4
+  - idx05_body_joint5
+
+head_joints:
+  - idx11_head_joint1
+  - idx12_head_joint2
+  - idx13_head_joint3
 
 arm_l_joints:
   - idx21_arm_l_joint1
@@ -45,47 +71,69 @@ arm_r_joints:
 gripper:
   left_joint: gripper_l_active_joint
   right_joint: gripper_r_active_joint
-  open_position: 0.0
-  close_position: 0.8
+  open_position: -46.0
+  close_position: 0.0
 
 states:
   default:
-    arm_l: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    arm_r: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    group_name: wbc_fixed_headless  
+    body: [-20.0, 75.0, -56.0, 0.0, 0.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [0.0, -45, 0.0, -75, 0.0, -55, 0.0]
+    arm_r: [0.0, -45, 0.0, -75, 0.0, -55, 0.0]
     gripper_l: open
     gripper_r: open
 
   pick_ready:
-    arm_l: [0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
-    arm_r: [-0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    group_name: simple_arms  
+    body: [-20.0, 75.0, -56.0, 0.0, 0.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, 0.0, 0.0]
+    arm_r: [-90.0, -90.0, 90.0, -90.0, -90.0, 0.0, 0.0]
     gripper_l: open
     gripper_r: open
 
   pick:
-    arm_l: [0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
-    arm_r: [-0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
+    group_name: simple_arms  
+    body: [-20.0, 75.0, -56.0, 0.0, 0.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
+    arm_r: [-90.0, -90.0, 90.0, -90.0, -90.0, -20.0, 0.0]
     gripper_l: close
     gripper_r: close
-    # Camera-based grasp pose goes here once perception is wired up: publish
-    # geometry_msgs/PoseStamped on ~/target_pose/pick/{left,right} and this
-    # state will use it instead of arm_l/arm_r above.
-    perception_override: true
 
-  hold:
-    arm_l: [0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
-    arm_r: [-0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+  pick_hold:
+    group_name: simple_arms 
+    body: [-20.0, 75.0, -56.0, 0.0, 0.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [45.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
+    arm_r: [-45.0, -90.0, 90.0, -90.0, -90.0, -20.0, 0.0]
+    gripper_l: hold
+    gripper_r: hold
+
+  place_hold:
+    group_name: wbc_fixed_headless 
+    body: [-20.0, 75.0, -56.0, 0.0, -90.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [45.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
+    arm_r: [-45.0, -90.0, 90.0, -90.0, -90.0, -20.0, 0.0]
     gripper_l: hold
     gripper_r: hold
 
   place_ready:
-    arm_l: [-0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
-    arm_r: [0.3, -0.4, 0.0, -1.2, 0.0, 0.8, 0.0]
+    group_name: simple_arms
+    body: [-20.0, 75.0, -56.0, 0.0, -90.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
+    arm_r: [-90.0, -90.0, 90.0, -90.0, -90.0, -20.0, 0.0]
     gripper_l: hold
     gripper_r: hold
 
   place:
-    arm_l: [-0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
-    arm_r: [0.3, -0.6, 0.0, -1.6, 0.0, 1.0, 0.0]
+    group_name: simple_arms 
+    body: [-20.0, 75.0, -56.0, 0.0, -90.0]
+    head: [0.0, 0.0, 0.0]
+    arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, 0.0, 0.0]
+    arm_r: [-90.0, -90.0, 90.0, -90.0, -90.0, 0.0, 0.0]
     gripper_l: open
     gripper_r: open
-    perception_override: true

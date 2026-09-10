@@ -32,6 +32,7 @@ class MoveGroupError(RuntimeError):
 class MoveGroupActionClient:
     def __init__(self, node: Node, group_name: str, callback_group: Optional[CallbackGroup] = None):
         self._node = node
+        # Default group, used when a call site doesn't pass its own `group_name`.
         self.group_name = group_name
         self._client = ActionClient(node, MoveGroup, "/move_action", callback_group=callback_group)
 
@@ -81,14 +82,16 @@ class MoveGroupActionClient:
 
         return constraints
 
-    def _send(self, constraints: Constraints, timeout_sec: float) -> None:
+    def _send(self, constraints: Constraints, timeout_sec: float, group_name: Optional[str] = None) -> None:
+        resolved_group = group_name or self.group_name
+
         req = MotionPlanRequest()
-        req.group_name = self.group_name
+        req.group_name = resolved_group
         req.goal_constraints = [constraints]
         req.allowed_planning_time = 10.0
         req.num_planning_attempts = 5
-        req.max_velocity_scaling_factor = 0.3
-        req.max_acceleration_scaling_factor = 0.3
+        req.max_velocity_scaling_factor = 0.2
+        req.max_acceleration_scaling_factor = 0.2
 
         goal = MoveGroup.Goal()
         goal.request = req
@@ -106,7 +109,7 @@ class MoveGroupActionClient:
         def _on_goal_response(goal_future) -> None:
             goal_handle = goal_future.result()
             if not goal_handle.accepted:
-                outcome["error"] = f"move_group rejected the goal for group '{self.group_name}'"
+                outcome["error"] = f"move_group rejected the goal for group '{resolved_group}'"
                 done_event.set()
                 return
             goal_handle.get_result_async().add_done_callback(_on_result)
@@ -114,14 +117,14 @@ class MoveGroupActionClient:
         self._client.send_goal_async(goal).add_done_callback(_on_goal_response)
 
         if not done_event.wait(timeout_sec):
-            raise MoveGroupError(f"move_group goal for group '{self.group_name}' timed out after {timeout_sec}s")
+            raise MoveGroupError(f"move_group goal for group '{resolved_group}' timed out after {timeout_sec}s")
 
         if "error" in outcome:
             raise MoveGroupError(outcome["error"])
 
         if outcome["status"] != GoalStatus.STATUS_SUCCEEDED or outcome["error_code"] != MOVEIT_SUCCESS:
             raise MoveGroupError(
-                f"move_group goal for group '{self.group_name}' failed: "
+                f"move_group goal for group '{resolved_group}' failed: "
                 f"status={outcome['status']} error_code={outcome['error_code']}"
             )
 
@@ -131,8 +134,9 @@ class MoveGroupActionClient:
         positions: List[float],
         tolerance: float = 0.01,
         timeout_sec: float = 30.0,
+        group_name: Optional[str] = None,
     ) -> None:
-        self._send(self._joint_constraints(joint_names, positions, tolerance), timeout_sec)
+        self._send(self._joint_constraints(joint_names, positions, tolerance), timeout_sec, group_name)
 
     def move_to_poses(
         self,
@@ -140,6 +144,7 @@ class MoveGroupActionClient:
         pos_tolerance: float = 0.01,
         angle_tolerance: float = 0.05,
         timeout_sec: float = 30.0,
+        group_name: Optional[str] = None,
     ) -> None:
         """`link_poses`: one (link_name, PoseStamped) pair per end-effector to constrain."""
         if not link_poses:
@@ -149,4 +154,4 @@ class MoveGroupActionClient:
             sub = self._pose_constraint(link_name, pose, pos_tolerance, angle_tolerance)
             combined.position_constraints.extend(sub.position_constraints)
             combined.orientation_constraints.extend(sub.orientation_constraints)
-        self._send(combined, timeout_sec)
+        self._send(combined, timeout_sec, group_name)
