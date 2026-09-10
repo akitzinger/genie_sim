@@ -1,6 +1,6 @@
-# Copyright (c) 2023-2026, AgiBot Inc. All Rights Reserved.
-# Author: Genie Sim Team
-# License: Mozilla Public License Version 2.0
+# Copyright (c) 2026, Alexander Kitzinger
+# Author: Alexander Kitzinger
+# License: MIT
 """Thin synchronous wrapper around the moveit_msgs/MoveGroup action.
 
 Talks directly to the already-running `move_group` node's `/move_action`

@@ -7,7 +7,7 @@ the layer above MoveIt that turns "plan/execute a trajectory" into
 machine and toggles the parallel-jaw grippers over `/joint_command`.
 
 Source: [source/geniesim_ros/src/ros_ws/src/genie_sim_dual_arm_manip/](.)
-License: [Mozilla Public License Version 2.0](LICENSE)
+License: [MIT](LICENSE)
 
 ---
 

@@ -13,7 +13,7 @@
     does not implement perception itself.
   </description>
   <maintainer email="yangwendisheng@agibot.com" />
-  <license file="LICENSE">Mozilla Public License Version 2.0</license>
+  <license file="LICENSE">MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>

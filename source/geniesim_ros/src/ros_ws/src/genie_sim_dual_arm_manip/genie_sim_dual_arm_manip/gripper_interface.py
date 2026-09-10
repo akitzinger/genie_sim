@@ -1,6 +1,6 @@
-# Copyright (c) 2023-2026, AgiBot Inc. All Rights Reserved.
-# Author: Genie Sim Team
-# License: Mozilla Public License Version 2.0
+# Copyright (c) 2026, Alexander Kitzinger
+# Author: Alexander Kitzinger
+# License: MIT
 """Minimal /joint_command wrapper for the two parallel-jaw grippers.
 
 Same joint-name caveat as genie_sim_bringup/scripts/gripper_cmds.py: verify
