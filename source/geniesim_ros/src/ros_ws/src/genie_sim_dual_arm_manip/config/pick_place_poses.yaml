@@ -85,7 +85,7 @@ states:
     gripper_r: open
 
   pick_ready:
-    group_name: simple_arms  
+    group_name: wbc_fixed_arms  
     body: [-20.0, 75.0, -56.0, 0.0, 0.0]
     head: [0.0, 0.0, 0.0]
     arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, 0.0, 0.0]
@@ -94,7 +94,7 @@ states:
     gripper_r: open
 
   pick:
-    group_name: simple_arms  
+    group_name: wbc_fixed_arms  
     body: [-20.0, 75.0, -56.0, 0.0, 0.0]
     head: [0.0, 0.0, 0.0]
     arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
@@ -103,7 +103,7 @@ states:
     gripper_r: close
 
   pick_hold:
-    group_name: simple_arms 
+    group_name: wbc_fixed_arms 
     body: [-20.0, 75.0, -56.0, 0.0, 0.0]
     head: [0.0, 0.0, 0.0]
     arm_l: [45.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
@@ -112,7 +112,7 @@ states:
     gripper_r: hold
 
   place_hold:
-    group_name: wbc_fixed_headless 
+    group_name: simple_torso 
     body: [-20.0, 75.0, -56.0, 0.0, -90.0]
     head: [0.0, 0.0, 0.0]
     arm_l: [45.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
@@ -121,19 +121,19 @@ states:
     gripper_r: hold
 
   place_ready:
-    group_name: simple_arms
-    body: [-20.0, 75.0, -56.0, 0.0, -90.0]
+    group_name: wbc_fixed_headless
+    body: [-20.0, 75.0, -56.0, 20.0, -90.0]
     head: [0.0, 0.0, 0.0]
-    arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
-    arm_r: [-90.0, -90.0, 90.0, -90.0, -90.0, -20.0, 0.0]
+    arm_l: [10.0, -90.0, -90.0, 0.0, 90.0, -20.0, 0.0]
+    arm_r: [-10.0, -90.0, 90.0, 0.0, -90.0, -20.0, 0.0]
     gripper_l: hold
     gripper_r: hold
 
   place:
-    group_name: simple_arms 
-    body: [-20.0, 75.0, -56.0, 0.0, -90.0]
+    group_name: wbc_fixed_arms 
+    body: [-20.0, 75.0, -56.0, 20.0, -90.0]
     head: [0.0, 0.0, 0.0]
-    arm_l: [90.0, -90.0, -90.0, -90.0, 90.0, 0.0, 0.0]
-    arm_r: [-90.0, -90.0, 90.0, -90.0, -90.0, 0.0, 0.0]
+    arm_l: [10.0, -90.0, -90.0, 0.0, 90.0, 0.0, 0.0]
+    arm_r: [-10.0, -90.0, 90.0, 0.0, -90.0, 0.0, 0.0]
     gripper_l: open
     gripper_r: open

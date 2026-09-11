@@ -13,7 +13,7 @@ windows:
         # Konsole 2: MoveIt WBC
         - wbc:
             - source devel/setup.bash
-            - ros2 launch genie_sim_moveit wbc.launch.py gripper:=omnipicker
+            - ros2 launch genie_sim_moveit wbc.launch.py gripper:=omnipicker use_human_priors:=true
         
         # Konsole 3: Dual Arm Manipulation
         - manip:

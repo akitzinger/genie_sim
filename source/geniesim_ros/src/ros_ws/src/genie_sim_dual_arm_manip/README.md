@@ -44,7 +44,21 @@ ros2 launch genie_sim_moveit wbc.launch.py
 
 This package is a pure **client** of that action server (`/move_action`);
 it does not start its own planning-scene monitor or duplicate the MoveIt
-config.
+config. At startup it adds a box collision object named `table` through
+`/apply_planning_scene`. The defaults are a 1 m x 1 m x 0.1 m box centered at
+`z = -0.05` in `base_link`; override them when launching the task node:
+
+```bash
+ros2 run genie_sim_dual_arm_manip dual_arm_pick_place_task \
+    --ros-args \
+    -p planning_scene_frame:=base_link \
+    -p table_dimensions:="[1.2, 0.8, 0.1]" \
+    -p table_position:="[0.0, 0.0, -0.05]"
+```
+
+The scene update must succeed before the task services are created, so a
+missing `/apply_planning_scene` service fails startup instead of planning
+without the expected collision geometry.
 
 ## Run
 

@@ -55,6 +55,10 @@ from ament_index_python.packages import get_package_share_directory
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from rclpy.node import Node
+from geometry_msgs.msg import Pose
+from moveit_msgs.msg import CollisionObject, PlanningScene
+from moveit_msgs.srv import ApplyPlanningScene
+from shape_msgs.msg import SolidPrimitive
 from std_srvs.srv import Trigger
 
 from genie_sim_dual_arm_manip.gripper_interface import GripperInterface
@@ -75,6 +79,11 @@ class DualArmPickPlaceTask(Node):
         )
         self.declare_parameter("pose_config", default_config)
         self.declare_parameter("move_group_timeout_sec", 30.0)
+        self.declare_parameter("planning_scene_frame", "base_link")
+        self.declare_parameter("table_collision_object_id", ["table_1", "table_2", "table_3"])
+        self.declare_parameter("table_dimensions", [0.8, 1.1, 0.7, 0.8, 1.1, 0.7, 0.8, 1.1, 0.7])
+        self.declare_parameter("table_position", [1.025, 0.0, 0.35, 1.025, -1.0, 0.35, 1.025, 1.0, 0.35])
+        self.declare_parameter("table_orientation", [0.0, 0.0, 0.0, 1.0] * 3)
 
         config_path = self.get_parameter("pose_config").get_parameter_value().string_value
         self._plan: PosePlan = load_pose_plan(config_path)
@@ -104,6 +113,7 @@ class DualArmPickPlaceTask(Node):
         self.get_logger().info(f"waiting for move_group action server (group '{self._plan.group_name}')...")
         self._move_group.wait_for_server(timeout_sec=30.0)
         self.get_logger().info("move_group action server ready")
+        self._apply_collision_objects()
 
         self._services = []
         for state in TaskState:
@@ -118,6 +128,59 @@ class DualArmPickPlaceTask(Node):
         self._services.append(
             self.create_service(Trigger, "~/run_cycle", self._run_cycle_cb, callback_group=self._cb_group)
         )
+
+    def _apply_collision_objects(self) -> None:
+        planning_scene_client = self.create_client(ApplyPlanningScene, "/apply_planning_scene")
+        if not planning_scene_client.wait_for_service(timeout_sec=10.0):
+            raise RuntimeError("MoveIt planning-scene service '/apply_planning_scene' not available")
+
+        dimensions = list(self.get_parameter("table_dimensions").value)
+        positions = list(self.get_parameter("table_position").value)
+        orientations = list(self.get_parameter("table_orientation").value)
+        object_ids = list(self.get_parameter("table_collision_object_id").value)
+        table_count = len(object_ids)
+        if (
+            table_count == 0
+            or len(dimensions) != table_count * 3
+            or len(positions) != table_count * 3
+            or len(orientations) != table_count * 4
+        ):
+            raise ValueError(
+                "table_collision_object_id must contain one ID per table; "
+                "table_dimensions and table_position need three values per table; "
+                "table_orientation needs four values per table"
+            )
+
+        scene = PlanningScene()
+        scene.is_diff = True
+        for index, object_id in enumerate(object_ids):
+            dimension_start = index * 3
+            orientation_start = index * 4
+            primitive = SolidPrimitive()
+            primitive.type = SolidPrimitive.BOX
+            primitive.dimensions = dimensions[dimension_start : dimension_start + 3]
+
+            pose = Pose()
+            pose.position.x, pose.position.y, pose.position.z = positions[dimension_start : dimension_start + 3]
+            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = orientations[
+                orientation_start : orientation_start + 4
+            ]
+
+            collision_object = CollisionObject()
+            collision_object.id = object_id
+            collision_object.header.frame_id = str(self.get_parameter("planning_scene_frame").value)
+            collision_object.operation = CollisionObject.ADD
+            collision_object.primitives.append(primitive)
+            collision_object.primitive_poses.append(pose)
+            scene.world.collision_objects.append(collision_object)
+
+        request = ApplyPlanningScene.Request()
+        request.scene = scene
+        future = planning_scene_client.call_async(request)
+        rclpy.spin_until_future_complete(self, future, timeout_sec=10.0)
+        if not future.done() or future.result() is None or not future.result().success:
+            raise RuntimeError("failed to apply the table collision object to the planning scene")
+        self.get_logger().info(f"applied table collision object(s) '{', '.join(object_ids)}'")
 
     def _make_state_service(self, state: TaskState):
         def _cb(request, response):
