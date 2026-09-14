@@ -80,10 +80,6 @@ class DualArmPickPlaceTask(Node):
         self.declare_parameter("pose_config", default_config)
         self.declare_parameter("move_group_timeout_sec", 30.0)
         self.declare_parameter("planning_scene_frame", "base_link")
-        self.declare_parameter("table_collision_object_id", ["table_1", "table_2", "table_3"])
-        self.declare_parameter("table_dimensions", [0.8, 1.1, 0.7, 0.8, 1.1, 0.7, 0.8, 1.1, 0.7])
-        self.declare_parameter("table_position", [1.025, 0.0, 0.35, 1.025, -1.0, 0.35, 1.025, 1.0, 0.35])
-        self.declare_parameter("table_orientation", [0.0, 0.0, 0.0, 1.0] * 3)
 
         config_path = self.get_parameter("pose_config").get_parameter_value().string_value
         self._plan: PosePlan = load_pose_plan(config_path)
@@ -134,37 +130,30 @@ class DualArmPickPlaceTask(Node):
         if not planning_scene_client.wait_for_service(timeout_sec=10.0):
             raise RuntimeError("MoveIt planning-scene service '/apply_planning_scene' not available")
 
-        dimensions = list(self.get_parameter("table_dimensions").value)
-        positions = list(self.get_parameter("table_position").value)
-        orientations = list(self.get_parameter("table_orientation").value)
-        object_ids = list(self.get_parameter("table_collision_object_id").value)
-        table_count = len(object_ids)
-        if (
-            table_count == 0
-            or len(dimensions) != table_count * 3
-            or len(positions) != table_count * 3
-            or len(orientations) != table_count * 4
-        ):
-            raise ValueError(
-                "table_collision_object_id must contain one ID per table; "
-                "table_dimensions and table_position need three values per table; "
-                "table_orientation needs four values per table"
-            )
+        object_ids = ["table_1", "table_2", "table_3"]
+        dimensions = [[0.8, 1.1, 0.75], [0.8, 1.1, 0.75], [0.8, 1.1, 0.75]]
+        positions = [[0.825, 0.0, 0.35], [0.15, -0.95, 0.35], [0.15, 0.95, 0.35]]
+        orientations = [
+            [0.0, 0.0, 0.0, 1.0],
+            [0.0, 0.0, 0.7071068, 0.7071068],
+            [0.0, 0.0, 0.7071068, 0.7071068],
+        ]
 
         scene = PlanningScene()
         scene.is_diff = True
-        for index, object_id in enumerate(object_ids):
-            dimension_start = index * 3
-            orientation_start = index * 4
+        for object_id, dim, pos, ori in zip(object_ids, dimensions, positions, orientations):
             primitive = SolidPrimitive()
             primitive.type = SolidPrimitive.BOX
-            primitive.dimensions = dimensions[dimension_start : dimension_start + 3]
+            primitive.dimensions = [float(d) for d in dim]
 
             pose = Pose()
-            pose.position.x, pose.position.y, pose.position.z = positions[dimension_start : dimension_start + 3]
-            pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w = orientations[
-                orientation_start : orientation_start + 4
-            ]
+            pose.position.x = float(pos[0])
+            pose.position.y = float(pos[1])
+            pose.position.z = float(pos[2])
+            pose.orientation.x = float(ori[0])
+            pose.orientation.y = float(ori[1])
+            pose.orientation.z = float(ori[2])
+            pose.orientation.w = float(ori[3])
 
             collision_object = CollisionObject()
             collision_object.id = object_id
