@@ -266,16 +266,20 @@ simple_arms:
 simple_dual_arm_l:
   kinematics_solver: robin_moveit_plugins/BioIKPlugin
   kinematics_solver_search_resolution: 0.005
-  kinematics_solver_timeout: 0.1
+  kinematics_solver_timeout: 0.5
   kinematics_solver_ik_links:
     - arm_l_end_link
   kinematics_solver_master_link: arm_l_end_link
   kinematics_solver_slave_link: arm_r_end_link
+  kinematics_solver_master_pose_weight: 1.0
+  kinematics_solver_slave_pose_weight: 1.0
 simple_dual_arm_r:
   kinematics_solver: robin_moveit_plugins/BioIKPlugin
   kinematics_solver_search_resolution: 0.005
-  kinematics_solver_timeout: 0.1
+  kinematics_solver_timeout: 0.5
   kinematics_solver_ik_links:
     - arm_r_end_link
   kinematics_solver_master_link: arm_r_end_link
   kinematics_solver_slave_link: arm_l_end_link
+  kinematics_solver_master_pose_weight: 1.0
+  kinematics_solver_slave_pose_weight: 1.0

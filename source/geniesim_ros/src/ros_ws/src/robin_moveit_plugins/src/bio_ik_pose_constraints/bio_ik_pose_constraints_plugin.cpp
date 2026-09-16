@@ -63,15 +63,12 @@ namespace robin_moveit_plugins
         return false;
       }
 
-      // MoveIt passes the externally visible IK tips from
-      // kinematics_solver_ik_links. Keep that contract intact: BioIK may
-      // auto-discover both arm end-effectors from the composite group, but
-      // the coupled wrapper exposes only the configured master tip to
-      // MoveIt and adds the slave goal internally.
-      tip_frames_ = tip_frames;
-
       master_link_ = getParameterString(node, "kinematics_solver_master_link");
       slave_link_ = getParameterString(node, "kinematics_solver_slave_link");
+      master_pose_weight_ = getParameterDouble(
+          node, "kinematics_solver_master_pose_weight", 1.0);
+      slave_pose_weight_ = getParameterDouble(
+          node, "kinematics_solver_slave_pose_weight", 1.0);
 
       // Default fallbacks based on group name conventions if parameters are omitted
       if (master_link_.empty())
@@ -93,12 +90,29 @@ namespace robin_moveit_plugins
         }
       }
 
+      // The coupled group's public IK tip must be the configured master. The
+      // underlying BioIK plugin auto-discovers both arm end-effectors, while
+      // RViz uses this list to attach the interactive marker. Exposing the
+      // incoming composite-group order here can attach a marker to the slave
+      // arm, especially when both groups have the same SRDF subgroup order.
+      // Keep the slave private to the coupled goal stack below.
+      tip_frames_.clear();
+      if (!master_link_.empty())
+      {
+        tip_frames_.push_back(master_link_);
+      }
+      else
+      {
+        tip_frames_ = tip_frames;
+      }
+
       if (node)
       {
         RCLCPP_INFO(
             node->get_logger(),
-            "[RobinBioIK] Initialized for '%s' (master='%s', slave='%s', tips=%zu)",
-            group_name.c_str(), master_link_.c_str(), slave_link_.c_str(), tip_frames_.size());
+            "[RobinBioIK] Initialized for '%s' (master='%s' weight=%.3f, slave='%s' weight=%.3f, tips=%zu)",
+            group_name.c_str(), master_link_.c_str(), master_pose_weight_,
+            slave_link_.c_str(), slave_pose_weight_, tip_frames_.size());
       }
 
       return true;
@@ -292,6 +306,52 @@ namespace robin_moveit_plugins
     }
 
   private:
+    double getParameterDouble(
+        const rclcpp::Node::SharedPtr &node, const std::string &name, double default_value) const
+    {
+      if (!node)
+      {
+        return default_value;
+      }
+
+      const std::string scoped_name =
+          "robot_description_kinematics." + getGroupName() + "." + name;
+      const std::string group_scoped_name = getGroupName() + "." + name;
+      const std::vector<std::string> candidates = {scoped_name, group_scoped_name, name};
+
+      for (const auto &candidate : candidates)
+      {
+        if (node->has_parameter(candidate))
+        {
+          double value = default_value;
+          if (node->get_parameter(candidate, value))
+          {
+            return value;
+          }
+        }
+      }
+
+      for (const auto &candidate : candidates)
+      {
+        try
+        {
+          node->declare_parameter(candidate, default_value);
+        }
+        catch (...)
+        {
+        }
+        if (node->has_parameter(candidate))
+        {
+          double value = default_value;
+          if (node->get_parameter(candidate, value))
+          {
+            return value;
+          }
+        }
+      }
+      return default_value;
+    }
+
     std::string getParameterString(
         const rclcpp::Node::SharedPtr &node, const std::string &name) const
     {
@@ -416,8 +476,10 @@ namespace robin_moveit_plugins
 
       auto options = std::make_unique<bio_ik::BioIKKinematicsQueryOptions>();
       options->replace = true;
-      options->goals.push_back(makePoseGoal(master_link_, master_target_model));
-      options->goals.push_back(makePoseGoal(slave_link_, slave_target_model));
+      options->goals.push_back(
+          makePoseGoal(master_link_, master_target_model, master_pose_weight_));
+      options->goals.push_back(
+          makePoseGoal(slave_link_, slave_target_model, slave_pose_weight_));
       options->goals.push_back(
           std::make_unique<bio_ik::MinimalDisplacementGoal>(0.5, true));
       options->goals.push_back(
@@ -428,14 +490,14 @@ namespace robin_moveit_plugins
     }
 
     static std::unique_ptr<bio_ik::PoseGoal> makePoseGoal(
-        const std::string &link_name, const Eigen::Isometry3d &pose)
+        const std::string &link_name, const Eigen::Isometry3d &pose, double weight)
     {
       tf2::Vector3 position(
           pose.translation().x(), pose.translation().y(), pose.translation().z());
       Eigen::Quaterniond orientation(pose.rotation());
       tf2::Quaternion rotation(
           orientation.x(), orientation.y(), orientation.z(), orientation.w());
-      auto goal = std::make_unique<bio_ik::PoseGoal>(link_name, position, rotation, 1.0);
+      auto goal = std::make_unique<bio_ik::PoseGoal>(link_name, position, rotation, weight);
       goal->setRotationScale(0.5);
       return goal;
     }
@@ -445,6 +507,8 @@ namespace robin_moveit_plugins
     std::shared_ptr<kinematics::KinematicsBase> inner_;
     std::string master_link_;
     std::string slave_link_;
+    double master_pose_weight_{1.0};
+    double slave_pose_weight_{1.0};
   };
 
 } // namespace robin_moveit_plugins
