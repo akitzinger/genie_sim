@@ -33,6 +33,8 @@ from genie_sim_dual_arm_manip.task_states import TaskState
 # selectable `group_name` or a new sub-group (e.g. chassis).
 _GROUP_SUBGROUPS: Dict[str, Tuple[str, ...]] = {
     "simple_arms": ("arm_l", "arm_r"),
+    "simple_dual_arm_l": ("arm_l", "arm_r"),
+    "simple_dual_arm_r": ("arm_l", "arm_r"),
     "wbc_fixed_arms": ("arm_l", "arm_r"),
     "wbc_arms": ("arm_l", "arm_r"),
     "simple_waist": ("waist",),

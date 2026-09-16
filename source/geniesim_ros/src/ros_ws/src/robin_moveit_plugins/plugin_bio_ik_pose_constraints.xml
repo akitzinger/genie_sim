@@ -1,0 +1,9 @@
+<library path="robin_moveit_plugins_bio_ik_pose_constraints_plugin">
+  <class name="robin_moveit_plugins/BioIKPlugin"
+         type="robin_moveit_plugins::BioIKPlugin"
+         base_class_type="kinematics::KinematicsBase">
+    <description>
+      BioIK evolutionary IK solver with dual arm tip body pose constraints.
+    </description>
+  </class>
+</library>
