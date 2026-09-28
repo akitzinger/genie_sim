@@ -46,9 +46,26 @@ target_link_libraries(robin_moveit_plugins_bio_ik_pose_constraints_plugin
 ament_target_dependencies(robin_moveit_plugins_bio_ik_pose_constraints_plugin ${DEPS} bio_ik ament_index_cpp)
 
 # ===========================================================================
+# Custom Constraint Sampler Plugin
+# ===========================================================================
+add_library(robin_moveit_plugins_custom_sampler_plugin SHARED
+  src/custom_sampler/custom_sampler.cpp
+)
+target_include_directories(robin_moveit_plugins_custom_sampler_plugin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+ament_target_dependencies(robin_moveit_plugins_custom_sampler_plugin
+  moveit_core
+  pluginlib
+  moveit_msgs
+)
+
+# ===========================================================================
 # Plugin description exports
 # ===========================================================================
 pluginlib_export_plugin_description_file(moveit_core plugin_bio_ik_pose_constraints.xml)
+pluginlib_export_plugin_description_file(moveit_core custom_sampler_plugin_description.xml)
 
 # ===========================================================================
 # Install
@@ -56,6 +73,7 @@ pluginlib_export_plugin_description_file(moveit_core plugin_bio_ik_pose_constrai
 install(
   TARGETS
     robin_moveit_plugins_bio_ik_pose_constraints_plugin
+    robin_moveit_plugins_custom_sampler_plugin
   EXPORT  ${PROJECT_NAME}Targets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

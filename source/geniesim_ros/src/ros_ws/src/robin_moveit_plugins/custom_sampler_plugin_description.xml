@@ -1,0 +1,9 @@
+<library path="robin_moveit_plugins_custom_sampler_plugin">
+  <class name="robin_moveit_plugins/CustomSamplerAllocator" 
+         type="robin_moveit_plugins::CustomSamplerAllocator" 
+         base_class_type="constraint_samplers::ConstraintSamplerAllocator">
+    <description>
+      Custom constraint sampler for bimanual manipulation
+    </description>
+  </class>
+</library>
