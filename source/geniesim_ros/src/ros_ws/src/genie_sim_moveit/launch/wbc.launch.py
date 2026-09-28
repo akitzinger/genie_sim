@@ -157,6 +157,8 @@ def _launch_setup(context):
             ],
             remappings=mlu.MOVEIT_MOVE_GROUP_REMAPPINGS,
             additional_env={"DISPLAY": os.environ.get("DISPLAY", "")},
+            ros_arguments=['--log-level', 'move_group.moveit:=DEBUG',
+                           "--log-level", "move_group.moveit.moveit.ros.planning_scene_monitor:=info",]
         )
     )
 
@@ -255,7 +257,7 @@ def _launch_setup(context):
                 # interfaces as simple_waist_controller + simple_torso_controller,
                 # so spawning all three at once produces a resource-claim
                 # conflict in ros2_control's CM. Activate manually with
-                # `ros2 control switch_controllers --activate simple_body_controller
+                # `ros2 control switch_controlros_arguments=['--log-level', 'DEBUG']lers --activate simple_body_controller
                 #  --deactivate simple_waist_controller simple_torso_controller`
                 # when you want to drive the full body as a single chain.
                 "simple_head_controller",

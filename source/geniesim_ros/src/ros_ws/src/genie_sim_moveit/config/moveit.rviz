@@ -1,13 +1,13 @@
 Panels:
   - Class: rviz_common/Displays
-    Help Height: 85
+    Help Height: 0
     Name: Displays
     Property Tree Widget:
       Expanded:
         - /Global Options1
         - /MotionPlanning1
       Splitter Ratio: 0.5
-    Tree Height: 632
+    Tree Height: 183
   - Class: rviz_common/Help
     Name: Help
   - Class: rviz_common/Views
@@ -15,6 +15,8 @@ Panels:
       - /Current View1
     Name: Views
     Splitter Ratio: 0.5
+  - Class: rviz_visual_tools/RvizVisualToolsGui
+    Name: RvizVisualToolsGui
 Visualization Manager:
   Class: ""
   Displays:
@@ -237,32 +239,42 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_left_inner_link:
+          gripper_l_inner_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_left_outer_link:
+          gripper_l_inner_link2:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_left_support_link:
+          gripper_l_inner_link3:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_right_inner_link:
+          gripper_l_inner_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_right_outer_link:
+          gripper_l_outer_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_right_support_link:
+          gripper_l_outer_link2:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_l_outer_link3:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_l_outer_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -277,32 +289,42 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_left_inner_link:
+          gripper_r_inner_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_left_outer_link:
+          gripper_r_inner_link2:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_left_support_link:
+          gripper_r_inner_link3:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_right_inner_link:
+          gripper_r_inner_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_right_outer_link:
+          gripper_r_outer_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_right_support_link:
+          gripper_r_outer_link2:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_r_outer_link3:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_r_outer_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -542,32 +564,42 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_left_inner_link:
+          gripper_l_inner_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_left_outer_link:
+          gripper_l_inner_link2:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_left_support_link:
+          gripper_l_inner_link3:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_right_inner_link:
+          gripper_l_inner_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_right_outer_link:
+          gripper_l_outer_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_l_right_support_link:
+          gripper_l_outer_link2:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_l_outer_link3:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_l_outer_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -582,32 +614,42 @@ Visualization Manager:
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_left_inner_link:
+          gripper_r_inner_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_left_outer_link:
+          gripper_r_inner_link2:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_left_support_link:
+          gripper_r_inner_link3:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_right_inner_link:
+          gripper_r_inner_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_right_outer_link:
+          gripper_r_outer_link1:
             Alpha: 1
             Show Axes: false
             Show Trail: false
             Value: true
-          gripper_r_right_support_link:
+          gripper_r_outer_link2:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_r_outer_link3:
+            Alpha: 1
+            Show Axes: false
+            Show Trail: false
+            Value: true
+          gripper_r_outer_link4:
             Alpha: 1
             Show Axes: false
             Show Trail: false
@@ -642,8 +684,7 @@ Visualization Manager:
           Enabled: true
           Name: objects
           Namespaces:
-            objects: true
-            objects_labels: true
+            {}
           Topic:
             Depth: 5
             Durability Policy: Volatile
@@ -698,6 +739,18 @@ Visualization Manager:
           Value: true
       Enabled: true
       Name: visualization
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: MarkerArray
+      Namespaces:
+        {}
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /move_group_tutorial
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -739,7 +792,7 @@ Visualization Manager:
 Window Geometry:
   Displays:
     collapsed: false
-  Height: 1531
+  Height: 1043
   Help:
     collapsed: false
   Hide Left Dock: false
@@ -748,9 +801,11 @@ Window Geometry:
     collapsed: false
   MotionPlanning - Trajectory Slider:
     collapsed: false
-  QMainWindow State: 000000ff00000000fd0000000100000000000002db000005a5fc0200000005fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000003f00fffffffb000000100044006900730070006c006100790073010000003b00000308000000c700fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670100000349000001740000016900fffffffb0000000800480065006c0070000000029a0000006e0000006e00fffffffb0000000a0056006900650077007301000004c30000011d000000a000ffffff0000071f000005a500000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd0000000100000000000002db000003bdfc0200000006fb00000044004d006f00740069006f006e0050006c0061006e006e0069006e00670020002d0020005400720061006a006500630074006f0072007900200053006c00690064006500720000000000ffffffff0000003f00fffffffb000000100044006900730070006c006100790073010000003b000000f2000000c700fffffffb0000001c004d006f00740069006f006e0050006c0061006e006e0069006e00670100000133000001b70000016900fffffffb0000000800480065006c0070000000029a0000006e0000006e00fffffffb0000000a0056006900650077007301000002f0000000c3000000a000fffffffb00000024005200760069007a00560069007300750061006c0054006f006f006c007300470075006901000003b90000003f0000003f00ffffff0000049f000003bd00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  RvizVisualToolsGui:
+    collapsed: false
   Views:
     collapsed: false
-  Width: 2560
+  Width: 1920
   X: 0
-  Y: 32
+  Y: 0
