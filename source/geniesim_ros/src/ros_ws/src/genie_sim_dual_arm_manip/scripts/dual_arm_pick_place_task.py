@@ -62,7 +62,7 @@ from shape_msgs.msg import SolidPrimitive
 from std_srvs.srv import Trigger
 
 from genie_sim_dual_arm_manip.gripper_interface import GripperInterface
-from genie_sim_dual_arm_manip.moveit_action_client import MoveGroupActionClient, MoveGroupError
+from genie_sim_dual_arm_manip.moveit_action_client import MoveGroupActionClient, MoveGroupError, OrientationPathConstraint
 from genie_sim_dual_arm_manip.perception_interface import PerceptionOverride
 from genie_sim_dual_arm_manip.pose_config import PosePlan, load_pose_plan
 from genie_sim_dual_arm_manip.task_states import ORDER, SEQUENCE, TaskState
@@ -212,30 +212,51 @@ class DualArmPickPlaceTask(Node):
             target = self._plan.states[state]
             self.get_logger().info(f"-> {state.value} (group '{target.group_name}')")
 
-            if target.perception_override and self._perception.has_any_override(state):
-                link_poses = []
-                # Only constrain an arm's end-link pose when that arm is part of
-                # the configured planning group — otherwise move_group rejects it.
-                if self._plan.has_subgroup(target, "arm_l"):
-                    pose_l = self._perception.get_pose(state, "left")
-                    if pose_l is not None:
-                        link_poses.append(("arm_l_end_link", pose_l))
-                if self._plan.has_subgroup(target, "arm_r"):
-                    pose_r = self._perception.get_pose(state, "right")
-                    if pose_r is not None:
-                        link_poses.append(("arm_r_end_link", pose_r))
-                self._move_group.move_to_poses(
-                    link_poses, timeout_sec=self._timeout_sec, group_name=target.group_name
+            path_constraints = [
+                OrientationPathConstraint(
+                    link_name=pc.link_name,
+                    frame_id=pc.frame_id,
+                    orientation_xyzw=pc.orientation_xyzw,
+                    x_tolerance=pc.x_tolerance,
+                    y_tolerance=pc.y_tolerance,
+                    z_tolerance=pc.z_tolerance,
                 )
-            else:
-                joint_names, positions = self._plan.goal_joint_target(target)
-                self._move_group.move_to_joint_targets(
-                    joint_names,
-                    positions,
-                    tolerance=self._plan.joint_tolerance,
-                    timeout_sec=self._timeout_sec,
-                    group_name=target.group_name,
-                )
+                for pc in target.path_constraints
+            ]
+
+            # Per arm: a live perception pose (if enabled and published) wins,
+            # then a static `arm_l_pose`/`arm_r_pose` config, else fall back to
+            # that arm's `arm_l`/`arm_r` joint target. Only arms actually spanned
+            # by `target.group_name` are considered -- move_group rejects
+            # constraints on links outside the planning group.
+            link_poses = []
+            excluded_subgroups = []
+            for side, link_name, static_pose in (
+                ("left", "arm_l_end_link", target.arm_l_pose),
+                ("right", "arm_r_end_link", target.arm_r_pose),
+            ):
+                sub_name = "arm_l" if side == "left" else "arm_r"
+                if not self._plan.has_subgroup(target, sub_name):
+                    continue
+                pose = None
+                if target.perception_override and self._perception.has_any_override(state):
+                    pose = self._perception.get_pose(state, side)
+                if pose is None and static_pose is not None:
+                    pose = static_pose.to_pose_stamped()
+                if pose is not None:
+                    link_poses.append((link_name, pose))
+                    excluded_subgroups.append(sub_name)
+
+            joint_names, positions = self._plan.goal_joint_target(target, exclude=excluded_subgroups)
+            self._move_group.move_to_targets(
+                joint_names,
+                positions,
+                link_poses,
+                tolerance=self._plan.joint_tolerance,
+                timeout_sec=self._timeout_sec,
+                group_name=target.group_name,
+                path_constraints=path_constraints,
+            )
 
             self._gripper.apply("left", target.gripper_l)
             self._gripper.apply("right", target.gripper_r)

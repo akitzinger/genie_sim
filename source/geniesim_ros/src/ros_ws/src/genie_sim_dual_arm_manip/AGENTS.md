@@ -62,10 +62,15 @@ human-facing overview.
   a matching block under `states:` in every pose config in use. The
   Trigger-service loop in `dual_arm_pick_place_task.py` iterates
   `TaskState` automatically — no service wiring needed per new state.
-- **Cartesian (not joint-space) targets for static states**: currently only
-  `perception_override` states use `move_to_poses` (Cartesian). To make a
-  static state Cartesian too, extend `StateTarget` with an optional pose
-  field and branch in `_execute_state` the same way.
+- **Cartesian (not joint-space) targets for static states**: add
+  `arm_l_pose:` / `arm_r_pose:` under the state in
+  `config/pick_place_poses.yaml` (see the header comment in that file for
+  the schema) — `pose_config.PoseGoal` and `StateTarget.arm_l_pose` /
+  `arm_r_pose` carry it, and `_execute_state` builds it into the same
+  MoveGroup goal as any remaining joint-space sub-groups via
+  `MoveGroupActionClient.move_to_targets`. A live `perception_override`
+  pose still wins over a static `*_pose` when both are present for the
+  same arm/state.
 - **Real perception**: implement a node that publishes
   `geometry_msgs/PoseStamped` on `~/target_pose/<state>/{left,right}`
   (relative to the `dual_arm_pick_place_task` node's namespace) — no
@@ -84,7 +89,10 @@ human-facing overview.
   action-client's own response/result callbacks run on a different thread
   while a Trigger service callback blocks. If you ever swap to a
   `SingleThreadedExecutor`, every Trigger call will deadlock.
-- `move_to_poses` builds constraints for whichever links have a
-  latched perception pose (left, right, or both) — it does **not**
-  require both arms to have an override to proceed. Callers still fall
-  back entirely to joint-space targets if neither side has one yet.
+- `move_to_targets` builds one MoveGroup goal mixing joint constraints
+  (for whichever sub-groups still use joint-space targets) with pose
+  constraints (for whichever arm end-links have a resolved Cartesian
+  target — a latched perception pose or a static `arm_l_pose`/`arm_r_pose`)
+  — it does **not** require every sub-group to use the same goal type.
+  `move_to_poses`/`move_to_joint_targets` are thin single-purpose wrappers
+  around it kept for callers that only need one kind of goal.

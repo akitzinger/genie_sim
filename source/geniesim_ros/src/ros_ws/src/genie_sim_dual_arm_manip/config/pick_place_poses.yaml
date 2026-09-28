@@ -30,6 +30,22 @@
 # genie_sim_robot_model's Genie G2 crs/crsB xacro (idx01-05_body_joint1-5,
 # idx11-13_head_joint1-3, idx21-27_arm_l_joint1-7, idx61-67_arm_r_joint1-7)
 # — update them if you launched a different robot_model/arm combo.
+#
+# A state can target one or both arms with a Cartesian pose goal instead of
+# their `arm_l`/`arm_r` joint values, by adding `arm_l_pose:` and/or
+# `arm_r_pose:`:
+#
+#   pick:
+#     arm_l_pose:
+#       frame_id: base_link       # optional, defaults to base_link
+#       position: [0.4, 0.2, 0.9]
+#       orientation_xyzw: [0.0, 0.0, 0.0, 1.0]  # optional, defaults to identity
+#
+# `arm_l`/`arm_r` joint values are still required in that state (whole-body
+# pose bookkeeping), but are ignored for the arm(s) that have a `*_pose`
+# entry -- that arm's end link is constrained to the given pose instead. A
+# live `perception_override` pose (if enabled and published) still takes
+# precedence over a static `arm_l_pose`/`arm_r_pose` when both are present.
 
 group_name: wbc_fixed_headless
 joint_tolerance: 0.01
@@ -103,16 +119,31 @@ states:
     gripper_r: close
 
   pick_hold:
-    group_name: wbc_fixed_arms 
+    group_name: simple_dual_arm_l
     body: [-20.0, 75.0, -56.0, 0.0, 0.0]
     head: [0.0, 0.0, 0.0]
+    arm_l_pose:
+      frame_id: map
+      position: [1.0, 0.21, 1.0]
+      orientation_xyzw: [0.401, -0.574, 0.589, -0.403]
+    #arm_r_pose:
+    #  frame_id: map
+    #  position: [1.0, -0.25, 1.0]
+    #  orientation_xyzw: [0.15, 0.38, 0.69, 0.6]
     arm_l: [45.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
     arm_r: [-45.0, -90.0, 90.0, -90.0, -90.0, -20.0, 0.0]
     gripper_l: hold
     gripper_r: hold
+    #path_constraints:
+    #  - link_name: arm_l_end_link
+    #    frame_id: map
+    #    orientation_xyzw: [0.401, -0.574, 0.589, -0.403]
+    #    x_tolerance: 0.1
+    #    y_tolerance: 0.1
+    #    z_tolerance: 0.1
 
   place_hold:
-    group_name: simple_torso 
+    group_name: wbc_fixed_headless 
     body: [-20.0, 75.0, -56.0, -15.0, 90.0]
     head: [0.0, 0.0, 0.0]
     arm_l: [45.0, -90.0, -90.0, -90.0, 90.0, -20.0, 0.0]
