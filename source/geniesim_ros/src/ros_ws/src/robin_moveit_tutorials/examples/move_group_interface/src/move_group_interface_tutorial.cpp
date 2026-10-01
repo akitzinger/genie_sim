@@ -49,6 +49,8 @@
 
 #include <moveit/kinematic_constraints/utils.hpp>
 
+#include <sstream>
+
 // All source files that use ROS logging should define a file-specific
 // static const rclcpp::Logger named LOGGER, located at the top of the file
 // and inside the namespace with the narrowest scope (if there is one)
@@ -133,6 +135,9 @@ int main(int argc, char** argv)
     RCLCPP_INFO(LOGGER, "  - %s", group.c_str());
   }
 
+  // Planning Frame
+  const std::string PLANNING_FRAME = move_group.getPlanningFrame();
+
   // Endeffector link
   const std::string END_EFFECTOR_LINK = "arm_l_end_link";
 
@@ -155,37 +160,38 @@ int main(int argc, char** argv)
     return tf2::toMsg(ref_frame_tf * pose_eigen);
   };
 
-  // Set start pose from IK solution
+  // Get current state
   moveit::core::RobotState start_state(*move_group.getCurrentState());
 
+  // Defined start pose from current state
+  const Eigen::Isometry3d& KI_T_I1 = start_state.getGlobalLinkTransform(END_EFFECTOR_LINK);
+  const Eigen::Isometry3d& KI_T_I0 = start_state.getGlobalLinkTransform(POSE_REFERENCE_FRAME);
+  const auto R_I0 = KI_T_I0.rotation();
+  const auto R_01 = KI_T_I0.rotation().inverse() * KI_T_I1.rotation();
+
+  // pose in reference frame 
+  const Eigen::Vector3d t = R_I0.inverse() * (KI_T_I1.translation() - KI_T_I0.translation());
+  const Eigen::Quaterniond q(R_01);
+
   {
-    const Eigen::Isometry3d& eef_tf = start_state.getGlobalLinkTransform(END_EFFECTOR_LINK);
-    const Eigen::Isometry3d& base_tf = start_state.getGlobalLinkTransform(POSE_REFERENCE_FRAME);
-    const auto t = eef_tf.translation() - base_tf.translation();
-    const Eigen::Quaterniond q(eef_tf.rotation().inverse() * base_tf.rotation());
-    RCLCPP_INFO(LOGGER, "start_state (before IK) arm_l_end_link pose: xyz=[%.3f, %.3f, %.3f] xyzw=[%.3f, %.3f, %.3f, %.3f]",
+    std::ostringstream start_state_positions;
+    start_state.printStatePositions(start_state_positions);
+    RCLCPP_INFO(LOGGER, "Start state joint positions: %s", start_state_positions.str().c_str());
+
+    RCLCPP_INFO(LOGGER, "Start_state arm_l_end_link pose: xyz=[%.3f, %.3f, %.3f] xyzw=[%.3f, %.3f, %.3f, %.3f]",
                 t.x(), t.y(), t.z(), q.x(), q.y(), q.z(), q.w());
+
   }
 
-  // Defined start pose for the IK solution
+  // Set start pose
   geometry_msgs::msg::Pose start_pose1;
-  start_pose1.orientation.x = 0.0;
-  start_pose1.orientation.y = 1.0;
-  start_pose1.orientation.z = 0.0;
-  start_pose1.orientation.w = 0.0;
-  start_pose1.position.x = 0.4;
-  start_pose1.position.y = 0.0;
-  start_pose1.position.z = 0.25;
-  bool start_ik_found = start_state.setFromIK(joint_model_group, toPlanningFrame(start_pose1));
-
-  {
-    const Eigen::Isometry3d& eef_tf = start_state.getGlobalLinkTransform(END_EFFECTOR_LINK);
-    const Eigen::Isometry3d& base_tf = start_state.getGlobalLinkTransform(POSE_REFERENCE_FRAME);
-    const auto t = eef_tf.translation() - base_tf.translation();
-    const Eigen::Quaterniond q(eef_tf.rotation().inverse() * base_tf.rotation());
-    RCLCPP_INFO(LOGGER, "start_state (after IK, found=%s) arm_l_end_link pose: xyz=[%.3f, %.3f, %.3f] xyzw=[%.3f, %.3f, %.3f, %.3f]",
-                start_ik_found ? "true" : "false", t.x(), t.y(), t.z(), q.x(), q.y(), q.z(), q.w());
-  }
+  start_pose1.orientation.x = q.x();
+  start_pose1.orientation.y = q.y();
+  start_pose1.orientation.z = q.z();
+  start_pose1.orientation.w = q.w();
+  start_pose1.position.x = t.x();
+  start_pose1.position.y = t.y();
+  start_pose1.position.z = t.z();
 
   // Start the demo
   // ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -197,24 +203,26 @@ int main(int argc, char** argv)
   // We can plan a motion for this group to a desired pose for the
   // end-effector.
   geometry_msgs::msg::Pose target_pose1;
-  target_pose1.orientation.x = 0.0;
-  target_pose1.orientation.y = 1.0;
-  target_pose1.orientation.z = 0.0;
-  target_pose1.orientation.w = 0.0;
-  target_pose1.position.x = 0.3;
-  target_pose1.position.y = 0.1;
-  target_pose1.position.z = 0.25;
-  move_group.setStartState(start_state);
-  move_group.setPoseTarget(target_pose1, END_EFFECTOR_LINK);
+  target_pose1.orientation.x = q.x();
+  target_pose1.orientation.y = q.y();
+  target_pose1.orientation.z = q.z();
+  target_pose1.orientation.w = q.w();
+  target_pose1.position.x = t.x()-0.1;
+  target_pose1.position.y = t.y()+0.1;
+  target_pose1.position.z = t.z();
+
+  // move_group.setStartState(start_state);
+  // move_group.setPoseTarget(target_pose1, END_EFFECTOR_LINK);
 
   // Now, we call the planner to compute the plan and visualize it.
   // Note that we are just planning, not asking move_group
   // to actually move the robot.
   moveit::planning_interface::MoveGroupInterface::Plan my_plan;
 
-  bool success = (move_group.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+  // bool success = (move_group.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
 
-  RCLCPP_INFO(LOGGER, "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+  // RCLCPP_INFO(LOGGER, "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+
 
   // Visualizing plans
   // ^^^^^^^^^^^^^^^^^
@@ -251,13 +259,13 @@ int main(int argc, char** argv)
   moveit_msgs::msg::OrientationConstraint ocm;
   ocm.link_name = END_EFFECTOR_LINK;
   ocm.header.frame_id = POSE_REFERENCE_FRAME;
-  ocm.orientation.x = 0.0;
-  ocm.orientation.y = 1.0;
-  ocm.orientation.z = 0.0;
-  ocm.orientation.w = 0.0;
-  ocm.absolute_x_axis_tolerance = 0.1;
-  ocm.absolute_y_axis_tolerance = 0.1;
-  ocm.absolute_z_axis_tolerance = 0.1;
+  ocm.orientation.x = start_pose1.orientation.x;
+  ocm.orientation.y = start_pose1.orientation.y;
+  ocm.orientation.z = start_pose1.orientation.z;
+  ocm.orientation.w = start_pose1.orientation.w;
+  ocm.absolute_x_axis_tolerance = 0.2;
+  ocm.absolute_y_axis_tolerance = 0.2;
+  ocm.absolute_z_axis_tolerance = 0.2;
   ocm.weight = 1.0;
 
   // Position Box Constraints
@@ -270,10 +278,13 @@ int main(int argc, char** argv)
   box_constraint.constraint_region.primitives.push_back(box);
 
   geometry_msgs::msg::Pose box_pose;
-  box_pose.position.x = 0.35;
-  box_pose.position.y = 0.05;
-  box_pose.position.z = 0.25;
-  box_pose.orientation.w = 1.0;
+  box_pose.position.x = start_pose1.position.x-0.05;
+  box_pose.position.y = start_pose1.position.y+0.05;
+  box_pose.position.z = start_pose1.position.z;
+  box_pose.orientation.x = start_pose1.orientation.x;
+  box_pose.orientation.y = start_pose1.orientation.y;
+  box_pose.orientation.z = start_pose1.orientation.z;
+  box_pose.orientation.w = start_pose1.orientation.w;
   box_constraint.constraint_region.primitive_poses.push_back(box_pose);
   box_constraint.weight = 1.0;
 
@@ -282,40 +293,40 @@ int main(int argc, char** argv)
   visual_tools.trigger();
 
   // Now, set it as the path constraint for the group.
-  // moveit_msgs::msg::Constraints path_constraints;
-  // path_constraints.orientation_constraints.push_back(ocm);
-  // path_constraints.position_constraints.push_back(box_constraint);
-  // move_group.setPathConstraints(path_constraints);
+  moveit_msgs::msg::Constraints path_constraints;
+  path_constraints.orientation_constraints.push_back(ocm);
+  path_constraints.position_constraints.push_back(box_constraint);
+  move_group.setPathConstraints(path_constraints);
 
-  // pose comstraints
-  geometry_msgs::msg::PoseStamped target_pose_stamped;
-  target_pose_stamped.header.frame_id = POSE_REFERENCE_FRAME;
-  target_pose_stamped.pose.position.x = start_pose1.position.x;
-  target_pose_stamped.pose.position.y = start_pose1.position.y;
-  target_pose_stamped.pose.position.z = start_pose1.position.z;
-  target_pose_stamped.pose.orientation.x = start_pose1.orientation.x;
-  target_pose_stamped.pose.orientation.y = start_pose1.orientation.y;
-  target_pose_stamped.pose.orientation.z = start_pose1.orientation.z;
-  target_pose_stamped.pose.orientation.w = start_pose1.orientation.w;
+  // // pose constraints
+  // geometry_msgs::msg::PoseStamped target_pose_stamped;
+  // target_pose_stamped.header.frame_id = POSE_REFERENCE_FRAME;
+  // target_pose_stamped.pose.position.x = start_pose1.position.x;
+  // target_pose_stamped.pose.position.y = start_pose1.position.y;
+  // target_pose_stamped.pose.position.z = start_pose1.position.z;
+  // target_pose_stamped.pose.orientation.x = start_pose1.orientation.x;
+  // target_pose_stamped.pose.orientation.y = start_pose1.orientation.y;
+  // target_pose_stamped.pose.orientation.z = start_pose1.orientation.z;
+  // target_pose_stamped.pose.orientation.w = start_pose1.orientation.w;
 
-  moveit_msgs::msg::Constraints pose_constraints =
-    kinematic_constraints::constructGoalConstraints(
-        END_EFFECTOR_LINK,           // link name
-        target_pose_stamped,  // geometry_msgs::PoseStamped
-        1.0,              // position tolerance (m)
-        0.1             // orientation tolerance (rad)
-    );
-  move_group.setPathConstraints(pose_constraints);
+  // moveit_msgs::msg::Constraints pose_constraints =
+  //   kinematic_constraints::constructGoalConstraints(
+  //       END_EFFECTOR_LINK,           // link name
+  //       target_pose_stamped,  // geometry_msgs::PoseStamped
+  //       1.0,              // position tolerance (m)
+  //       0.1             // orientation tolerance (rad)
+  //   );
+  // move_group.setPathConstraints(pose_constraints);
 
   // Workspace Bounds
   moveit_msgs::msg::WorkspaceParameters wp;
   wp.header.frame_id = POSE_REFERENCE_FRAME;
-  wp.min_corner.x = -1.5;
-  wp.min_corner.y = -1.5;
-  wp.min_corner.z = -1.5;
-  wp.max_corner.x = 1.5;
-  wp.max_corner.y = 1.5;
-  wp.max_corner.z = 1.5;
+  wp.min_corner.x = -2.0;
+  wp.min_corner.y = -2.0;
+  wp.min_corner.z = -2.0;
+  wp.max_corner.x = 2.0;
+  wp.max_corner.y = 2.0;
+  wp.max_corner.z = 2.0;
   move_group.setWorkspace(wp.min_corner.x, wp.min_corner.y, wp.min_corner.z,
                          wp.max_corner.x, wp.max_corner.y, wp.max_corner.z);
 
@@ -347,10 +358,10 @@ int main(int argc, char** argv)
 
   // Planning with constraints can be slow because every sample must call an inverse kinematics solver.
   // Let's increase the planning time from the default 5 seconds to be sure the planner has enough time to succeed.
-  move_group.setPlanningTime(60.0);
+  move_group.setPlanningTime(300.0);
 
-  success = (move_group.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
-  RCLCPP_INFO(LOGGER, "Visualizing plan 2 (constraints) %s", success ? "" : "FAILED");
+  bool success = (move_group.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
+  RCLCPP_INFO(LOGGER, "Visualizing plan with constraints %s", success ? "" : "FAILED");
 
   // Visualize the plan in RViz:
   visual_tools.deleteAllMarkers();
