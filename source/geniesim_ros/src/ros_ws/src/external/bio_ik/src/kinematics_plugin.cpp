@@ -34,10 +34,13 @@
 #include <moveit/robot_model/robot_model.h>
 #include <moveit/robot_state/robot_state.h>
 #endif
+#include <moveit/utils/logger.hpp>
 
 #include <atomic>
+#include <iomanip>
 #include <mutex>
 #include <random>
+#include <sstream>
 #include <tuple>
 #include <type_traits>
 
@@ -86,6 +89,11 @@ toBioIKKinematicsQueryOptions(const void * ptr)
 namespace bio_ik_kinematics_plugin
 {
 
+static rclcpp::Logger getLogger()
+{
+  return moveit::getLogger("moveit.kinematics.bio_ik_kinematics_plugin");
+}
+
 template<class T>
 static void lookupParam(
   const rclcpp::Node::SharedPtr & node,
@@ -104,6 +112,20 @@ static void lookupParam(
     }
     node->get_parameter(full_param, val);
   }
+}
+
+static std::string formatValues(const std::vector<double> & values)
+{
+  std::ostringstream stream;
+  stream << '[' << std::setprecision(7);
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (i != 0) {
+      stream << ' ';
+    }
+    stream << values[i];
+  }
+  stream << ']';
+  return stream.str();
 }
 
 struct BioIKKinematicsPlugin : kinematics::KinematicsBase
@@ -135,7 +157,60 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
     const std::vector<double> & joint_angles,
     std::vector<geometry_msgs::msg::Pose> & poses) const override
   {
-    return false;
+    poses.clear();
+    if (!robot_model_ || !joint_model_group) {
+      return false;
+    }
+
+    // joint_angles is expected to carry one value per entry of getJointNames(), in that
+    // order (same convention used by searchPositionIK below). Build the full-size robot
+    // variable vector the same way searchPositionIK does, instead of writing per-joint via
+    // raw pointer arithmetic, to avoid any variable-count/order mismatch (e.g. mimic or
+    // multi-DOF joints) corrupting memory.
+    size_t expected_joint_angles = 0;
+    for (const auto & joint_name : joint_names) {
+      const auto * joint_model = robot_model_->getJointModel(joint_name);
+      if (!joint_model) {
+        return false;
+      }
+      expected_joint_angles += joint_model->getVariableCount();
+    }
+    if (joint_angles.size() != expected_joint_angles) {
+      return false;
+    }
+
+    std::vector<double> full_state;
+    robot_model_->getVariableDefaultPositions(full_state);
+    {
+      size_t angle_index = 0;
+      for (const auto & joint_name : joint_names) {
+        const auto * joint_model = robot_model_->getJointModel(joint_name);
+        for (size_t vi = 0; vi < joint_model->getVariableCount(); vi++) {
+          full_state.at(joint_model->getFirstVariableIndex() + vi) = joint_angles.at(angle_index++);
+        }
+      }
+    }
+
+    moveit::core::RobotState fk_state(robot_model_);
+    fk_state.setVariablePositions(full_state);
+    fk_state.update();
+
+    bool base_frame_found = false;
+    const Eigen::Isometry3d base_transform = fk_state.getFrameTransform(base_frame_, &base_frame_found);
+    if (!base_frame_found) {
+      return false;
+    }
+
+    poses.reserve(link_names.size());
+    for (const auto & link_name : link_names) {
+      const auto * link_model = robot_model_->getLinkModel(link_name);
+      if (!link_model) {
+        poses.clear();
+        return false;
+      }
+      poses.push_back(tf2::toMsg(base_transform.inverse() * fk_state.getGlobalLinkTransform(link_model)));
+    }
+    return true;
   }
 
   bool getPositionIK(
@@ -146,7 +221,12 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
     const kinematics::KinematicsQueryOptions & options =
     kinematics::KinematicsQueryOptions()) const override
   {
-    return false;
+    const bool success = searchPositionIK(
+      ik_pose, ik_seed_state, 0.0, solution, error_code, options);
+    if (!success && error_code.val == moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION) {
+      error_code.val = moveit_msgs::msg::MoveItErrorCodes::TIMED_OUT;
+    }
+    return success;
   }
 
   EigenSTL::vector_Isometry3d tip_reference_frames;
@@ -361,6 +441,18 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
   {
     double t0 = wallTime();
 
+    for (size_t i = 0; i < ik_poses.size(); ++i) {
+      const auto & pose = ik_poses[i];
+      RCLCPP_DEBUG(
+        getLogger(),
+        "searchPositionIK: Position request pose[%zu] is %.7g %.7g %.7g %.7g %.7g %.7g %.7g",
+        i,
+        pose.position.x, pose.position.y, pose.position.z,
+        pose.orientation.x, pose.orientation.y, pose.orientation.z, pose.orientation.w);
+    }
+    RCLCPP_DEBUG(
+      getLogger(), "Input: %s", formatValues(ik_seed_state).c_str());
+
     if (enable_profiler) {
       Profiler::start();
     }
@@ -509,22 +601,26 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
       }
     }
 
+    const double solution_fitness = ik->getSolutionFitness();
     if (bio_ik_options) {
-      bio_ik_options->solution_fitness = ik->getSolutionFitness();
+      bio_ik_options->solution_fitness = solution_fitness;
     }
 
     if (!ik->getSuccess() && !options.return_approximate_solution) {
       error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
-      return false;
-    }
-
-    if (solution_callback) {
+    } else if (solution_callback) {
       solution_callback(ik_poses.front(), solution, error_code);
-      return error_code.val == moveit_msgs::msg::MoveItErrorCodes::SUCCESS;
     } else {
       error_code.val = moveit_msgs::msg::MoveItErrorCodes::SUCCESS;
-      return true;
     }
+
+    const bool success = error_code.val == moveit_msgs::msg::MoveItErrorCodes::SUCCESS;
+    RCLCPP_DEBUG(
+      getLogger(),
+      "Result %d after %.6f seconds (solver_success=%s, fitness=%.7g): %s",
+      error_code.val, wallTime() - t0, ik->getSuccess() ? "true" : "false",
+      solution_fitness, formatValues(solution).c_str());
+    return success;
   }
 
   bool supportsGroup(
