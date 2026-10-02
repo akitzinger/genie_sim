@@ -1,3 +1,5 @@
+#include "robin_moveit_plugins/kinematics_base_plugin/kinematics_base_plugin.hpp"
+
 #include <bio_ik/goal_types.h>
 #include <bio_ik/bio_ik.h>
 
@@ -11,17 +13,15 @@
 #include <utility>
 #include <vector>
 
-#include "robin_moveit_plugins/pose_constraints.hpp"
-
 namespace robin_moveit_plugins
 {
 
-  class BioIKPlugin : public kinematics::KinematicsBase
+  class RobinIKPlugin : public kinematics::KinematicsBase
   {
   public:
-    BioIKPlugin() = default;
+    RobinIKPlugin() = default;
 
-    ~BioIKPlugin() override
+    ~RobinIKPlugin() override
     {
       inner_.reset();
       loader_.reset();
@@ -514,5 +514,5 @@ namespace robin_moveit_plugins
 } // namespace robin_moveit_plugins
 
 PLUGINLIB_EXPORT_CLASS(
-    robin_moveit_plugins::BioIKPlugin,
+    robin_moveit_plugins::RobinIKPlugin,
     kinematics::KinematicsBase)

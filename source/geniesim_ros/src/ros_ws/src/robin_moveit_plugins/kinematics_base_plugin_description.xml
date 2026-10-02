@@ -1,0 +1,9 @@
+<library path="robin_moveit_plugins_kinematics_base_plugin">
+  <class name="robin_moveit_plugins/RobinIKPlugin"
+         type="robin_moveit_plugins::RobinIKPlugin"
+         base_class_type="kinematics::KinematicsBase">
+    <description>
+      Custom IK solver for humanoid bimanual manipulation
+    </description>
+  </class>
+</library>

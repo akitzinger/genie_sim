@@ -19,43 +19,43 @@ find_package(bio_ik REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(OpenMP)
 
-set(DEPS
+# ===========================================================================
+# BioIK + Pose Constraints Plugin
+# ===========================================================================
+add_library(robin_moveit_plugins_kinematics_base_plugin SHARED
+  src/kinematics_base_plugin/kinematics_base_plugin.cpp
+)
+target_include_directories(robin_moveit_plugins_kinematics_base_plugin PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(robin_moveit_plugins_kinematics_base_plugin
+  Eigen3::Eigen
+  yaml-cpp
+  bio_ik::bio_ik
+)
+ament_target_dependencies(robin_moveit_plugins_kinematics_base_plugin
   rclcpp
   moveit_core
   pluginlib
   tf2_eigen
   geometry_msgs
   moveit_msgs
+  bio_ik
+  ament_index_cpp
 )
-
-# ===========================================================================
-# BioIK + Pose Constraints Plugin
-# ===========================================================================
-add_library(robin_moveit_plugins_bio_ik_pose_constraints_plugin SHARED
-  src/bio_ik_pose_constraints/bio_ik_pose_constraints_plugin.cpp
-)
-target_include_directories(robin_moveit_plugins_bio_ik_pose_constraints_plugin PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(robin_moveit_plugins_bio_ik_pose_constraints_plugin
-  Eigen3::Eigen
-  yaml-cpp
-  bio_ik::bio_ik
-)
-ament_target_dependencies(robin_moveit_plugins_bio_ik_pose_constraints_plugin ${DEPS} bio_ik ament_index_cpp)
 
 # ===========================================================================
 # Custom Constraint Sampler Plugin
 # ===========================================================================
-add_library(robin_moveit_plugins_custom_sampler_plugin SHARED
-  src/custom_sampler/custom_sampler.cpp
+add_library(robin_moveit_plugins_constraint_samplers_plugin SHARED
+  src/constraint_samplers_plugin/constraint_samplers_plugin.cpp
 )
-target_include_directories(robin_moveit_plugins_custom_sampler_plugin PUBLIC
+target_include_directories(robin_moveit_plugins_constraint_samplers_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
-ament_target_dependencies(robin_moveit_plugins_custom_sampler_plugin
+ament_target_dependencies(robin_moveit_plugins_constraint_samplers_plugin
   moveit_core
   pluginlib
   moveit_msgs
@@ -64,16 +64,16 @@ ament_target_dependencies(robin_moveit_plugins_custom_sampler_plugin
 # ===========================================================================
 # Plugin description exports
 # ===========================================================================
-pluginlib_export_plugin_description_file(moveit_core plugin_bio_ik_pose_constraints.xml)
-pluginlib_export_plugin_description_file(moveit_core custom_sampler_plugin_description.xml)
+pluginlib_export_plugin_description_file(moveit_core kinematics_base_plugin_description.xml)
+pluginlib_export_plugin_description_file(moveit_core constraint_samplers_plugin_description.xml)
 
 # ===========================================================================
 # Install
 # ===========================================================================
 install(
   TARGETS
-    robin_moveit_plugins_bio_ik_pose_constraints_plugin
-    robin_moveit_plugins_custom_sampler_plugin
+    robin_moveit_plugins_kinematics_base_plugin
+    robin_moveit_plugins_constraint_samplers_plugin
   EXPORT  ${PROJECT_NAME}Targets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
