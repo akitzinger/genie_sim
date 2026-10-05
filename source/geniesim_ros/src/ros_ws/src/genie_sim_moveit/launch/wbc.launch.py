@@ -153,12 +153,16 @@ def _launch_setup(context):
                     # under the ompl pipeline namespace, because the request adapter
                     # is shared across pipelines.
                     "fix_start_state": True,
+                    # custom sampler plugin
+                    "constraint_samplers": "robin_moveit_plugins/CustomSamplerAllocator"
                 },
             ],
             remappings=mlu.MOVEIT_MOVE_GROUP_REMAPPINGS,
             additional_env={"DISPLAY": os.environ.get("DISPLAY", "")},
-            ros_arguments=['--log-level', 'move_group.moveit:=DEBUG',
-                           "--log-level", "move_group.moveit.moveit.ros.planning_scene_monitor:=info",]
+            # ros_arguments=['--log-level', 'move_group.moveit:=DEBUG',
+            #                "--log-level", "move_group.moveit.moveit.ros.planning_scene_monitor:=info",],
+            # prefix=["gdbserver localhost:3000"],
+            # emulate_tty=True,
         )
     )
 

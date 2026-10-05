@@ -50,6 +50,10 @@ ament_target_dependencies(robin_moveit_plugins_kinematics_base_plugin
 # ===========================================================================
 add_library(robin_moveit_plugins_constraint_samplers_plugin SHARED
   src/constraint_samplers_plugin/constraint_samplers_plugin.cpp
+  src/constraint_samplers_plugin/constraint_sampler.cpp
+  src/constraint_samplers_plugin/constraint_sampler_manager.cpp
+  src/constraint_samplers_plugin/default_constraint_samplers.cpp
+  src/constraint_samplers_plugin/union_constraint_sampler.cpp
 )
 target_include_directories(robin_moveit_plugins_constraint_samplers_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
