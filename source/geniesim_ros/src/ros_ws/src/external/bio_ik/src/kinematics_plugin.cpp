@@ -137,6 +137,8 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
   mutable std::vector<double> state, temp;
   mutable std::unique_ptr<moveit::core::RobotState> temp_state;
   mutable std::vector<Frame> tipFrames;
+  // OMPL calls one solver instance from several threads; all members above are per-call scratch state.
+  mutable std::mutex search_mutex_;
   RobotInfo robot_info;
   bool enable_profiler;
   rclcpp::Node::SharedPtr node_;
@@ -490,6 +492,7 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
     kinematics::KinematicsQueryOptions(),
     const moveit::core::RobotState * context_state = NULL) const
   {
+    std::lock_guard<std::mutex> search_lock(search_mutex_);
     double t0 = wallTime();
 
     for (size_t i = 0; i < ik_poses.size(); ++i) {
