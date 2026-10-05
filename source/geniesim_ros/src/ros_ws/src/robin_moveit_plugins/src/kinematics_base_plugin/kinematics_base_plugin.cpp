@@ -418,11 +418,11 @@ namespace robin_moveit_plugins
     void addCustomGoals(bio_ik::BioIKKinematicsQueryOptions &options) const
     {
       options.goals.push_back(
-          std::make_unique<bio_ik::MinimalDisplacementGoal>(0.5, true));
+          std::make_unique<bio_ik::MinimalDisplacementGoal>(0.1, true));
       options.goals.push_back(
-          std::make_unique<bio_ik::AvoidJointLimitsGoal>(0.2, true));
+          std::make_unique<bio_ik::AvoidJointLimitsGoal>(0.0, true));
       options.goals.push_back(
-          std::make_unique<bio_ik::CenterJointsGoal>(0.1, true));
+          std::make_unique<bio_ik::CenterJointsGoal>(0.0, true));
     }
 
     rclcpp::Node::SharedPtr node_;

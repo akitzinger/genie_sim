@@ -65,7 +65,7 @@ bool CustomSamplerAllocator::canService(const planning_scene::PlanningSceneConst
                                         const std::string& group_name,
                                         const moveit_msgs::msg::Constraints& constr) const
 {
-  return group_name == "simple_dual_arm_l" && scene->getRobotModel()->hasJointModelGroup(group_name) &&
+  return (group_name == "simple_dual_arm_l" || group_name == "simple_dual_arm_r") && scene->getRobotModel()->hasJointModelGroup(group_name) &&
          (!constr.joint_constraints.empty() || !constr.position_constraints.empty() ||
           !constr.orientation_constraints.empty());
 }

@@ -77,7 +77,7 @@ int main(int argc, char** argv)
   // MoveIt operates on sets of joints called "planning groups" and stores them in an object called
   // the ``JointModelGroup``. Throughout MoveIt, the terms "planning group" and "joint model group"
   // are used interchangeably.
-  static const std::string PLANNING_GROUP = "simple_dual_arm_l"; // simple_dual_arm_l
+  static const std::string PLANNING_GROUP = "simple_dual_arm_l"; 
 
   // The
   // :moveit_codedir:`MoveGroupInterface<moveit_ros/planning_interface/move_group_interface/include/moveit/move_group_interface/move_group_interface.hpp>`
@@ -263,9 +263,9 @@ int main(int argc, char** argv)
   ocm.orientation.y = start_pose1.orientation.y;
   ocm.orientation.z = start_pose1.orientation.z;
   ocm.orientation.w = start_pose1.orientation.w;
-  ocm.absolute_x_axis_tolerance = 0.1;
-  ocm.absolute_y_axis_tolerance = 0.1;
-  ocm.absolute_z_axis_tolerance = 0.1;
+  ocm.absolute_x_axis_tolerance = 0.6;
+  ocm.absolute_y_axis_tolerance = 0.6;
+  ocm.absolute_z_axis_tolerance = 0.6;
   ocm.weight = 1.0;
 
   // Position Box Constraints
@@ -274,17 +274,17 @@ int main(int argc, char** argv)
   box_constraint.header.frame_id = POSE_REFERENCE_FRAME;
   shape_msgs::msg::SolidPrimitive box;
   box.type = shape_msgs::msg::SolidPrimitive::BOX;
-  box.dimensions = { 0.5, 0.5, 0.5 };
+  box.dimensions = { 0.8, 1.0, 1.0 };
   box_constraint.constraint_region.primitives.push_back(box);
 
   geometry_msgs::msg::Pose box_pose;
-  box_pose.position.x = start_pose1.position.x;
-  box_pose.position.y = start_pose1.position.y;
-  box_pose.position.z = start_pose1.position.z;
-  box_pose.orientation.x = start_pose1.orientation.x;
-  box_pose.orientation.y = start_pose1.orientation.y;
-  box_pose.orientation.z = start_pose1.orientation.z;
-  box_pose.orientation.w = start_pose1.orientation.w;
+  box_pose.position.x = 0.55;
+  box_pose.position.y = 0;
+  box_pose.position.z = 0.2;
+  box_pose.orientation.x = 0.0;
+  box_pose.orientation.y = 0.0;
+  box_pose.orientation.z = 0.0;
+  box_pose.orientation.w = 1.0;
   box_constraint.constraint_region.primitive_poses.push_back(box_pose);
   box_constraint.weight = 1.0;
 
@@ -362,6 +362,7 @@ int main(int argc, char** argv)
 
   bool success = (move_group.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
   RCLCPP_INFO(LOGGER, "Visualizing plan with constraints %s", success ? "" : "FAILED");
+  // move_group.move();
 
   // Visualize the plan in RViz:
   visual_tools.deleteAllMarkers();
