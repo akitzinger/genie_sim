@@ -207,9 +207,9 @@ int main(int argc, char** argv)
   target_pose1.orientation.y = q.y();
   target_pose1.orientation.z = q.z();
   target_pose1.orientation.w = q.w();
-  target_pose1.position.x = t.x()-0.1;
-  target_pose1.position.y = t.y()+0.1;
-  target_pose1.position.z = t.z();
+  target_pose1.position.x = t.x()-0.2;
+  target_pose1.position.y = t.y()+0.2;
+  target_pose1.position.z = t.z()+0.1;
 
   // move_group.setStartState(start_state);
   // move_group.setPoseTarget(target_pose1, END_EFFECTOR_LINK);
@@ -263,9 +263,9 @@ int main(int argc, char** argv)
   ocm.orientation.y = start_pose1.orientation.y;
   ocm.orientation.z = start_pose1.orientation.z;
   ocm.orientation.w = start_pose1.orientation.w;
-  ocm.absolute_x_axis_tolerance = 0.2;
-  ocm.absolute_y_axis_tolerance = 0.2;
-  ocm.absolute_z_axis_tolerance = 0.2;
+  ocm.absolute_x_axis_tolerance = 0.1;
+  ocm.absolute_y_axis_tolerance = 0.1;
+  ocm.absolute_z_axis_tolerance = 0.1;
   ocm.weight = 1.0;
 
   // Position Box Constraints
@@ -274,12 +274,12 @@ int main(int argc, char** argv)
   box_constraint.header.frame_id = POSE_REFERENCE_FRAME;
   shape_msgs::msg::SolidPrimitive box;
   box.type = shape_msgs::msg::SolidPrimitive::BOX;
-  box.dimensions = { 0.2, 0.2, 0.2 };
+  box.dimensions = { 0.5, 0.5, 0.5 };
   box_constraint.constraint_region.primitives.push_back(box);
 
   geometry_msgs::msg::Pose box_pose;
-  box_pose.position.x = start_pose1.position.x-0.05;
-  box_pose.position.y = start_pose1.position.y+0.05;
+  box_pose.position.x = start_pose1.position.x;
+  box_pose.position.y = start_pose1.position.y;
   box_pose.position.z = start_pose1.position.z;
   box_pose.orientation.x = start_pose1.orientation.x;
   box_pose.orientation.y = start_pose1.orientation.y;

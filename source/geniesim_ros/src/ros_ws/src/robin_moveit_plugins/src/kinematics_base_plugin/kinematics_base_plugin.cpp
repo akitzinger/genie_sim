@@ -13,6 +13,11 @@
 #include <utility>
 #include <vector>
 
+namespace bio_ik
+{
+  const BioIKKinematicsQueryOptions *toBioIKKinematicsQueryOptions(const void *ptr);
+}
+
 namespace robin_moveit_plugins
 {
 
@@ -64,11 +69,6 @@ namespace robin_moveit_plugins
       }
 
       master_link_ = getParameterString(node, "kinematics_solver_master_link");
-      slave_link_ = getParameterString(node, "kinematics_solver_slave_link");
-      master_pose_weight_ = getParameterDouble(
-          node, "kinematics_solver_master_pose_weight", 1.0);
-      slave_pose_weight_ = getParameterDouble(
-          node, "kinematics_solver_slave_pose_weight", 1.0);
 
       // Default fallbacks based on group name conventions if parameters are omitted
       if (master_link_.empty())
@@ -76,17 +76,14 @@ namespace robin_moveit_plugins
         if (group_name == "simple_dual_arm_l")
         {
           master_link_ = "arm_l_end_link";
-          slave_link_ = "arm_r_end_link";
         }
         else if (group_name == "simple_dual_arm_r")
         {
           master_link_ = "arm_r_end_link";
-          slave_link_ = "arm_l_end_link";
         }
         else if (tip_frames_.size() >= 2)
         {
           master_link_ = tip_frames_[0];
-          slave_link_ = tip_frames_[1];
         }
       }
 
@@ -110,9 +107,8 @@ namespace robin_moveit_plugins
       {
         RCLCPP_INFO(
             node->get_logger(),
-            "[RobinBioIK] Initialized for '%s' (master='%s' weight=%.3f, slave='%s' weight=%.3f, tips=%zu)",
-            group_name.c_str(), master_link_.c_str(), master_pose_weight_,
-            slave_link_.c_str(), slave_pose_weight_, tip_frames_.size());
+            "[RobinBioIK] Initialized for '%s' (master='%s', tips=%zu)",
+            group_name.c_str(), master_link_.c_str(), tip_frames_.size());
       }
 
       return true;
@@ -137,10 +133,9 @@ namespace robin_moveit_plugins
         const kinematics::KinematicsQueryOptions &options =
             kinematics::KinematicsQueryOptions()) const override
     {
-      auto bio_options = makeCoupledOptions(ik_pose, ik_seed_state);
-      return inner_->searchPositionIK(
-          ik_pose, ik_seed_state, timeout, solution, error_code,
-          bio_options ? *bio_options : options);
+      return searchPositionIK(
+          std::vector<geometry_msgs::msg::Pose>{ik_pose}, ik_seed_state, timeout,
+          std::vector<double>(), solution, IKCallbackFn(), error_code, options);
     }
 
     bool searchPositionIK(
@@ -153,10 +148,9 @@ namespace robin_moveit_plugins
         const kinematics::KinematicsQueryOptions &options =
             kinematics::KinematicsQueryOptions()) const override
     {
-      auto bio_options = makeCoupledOptions(ik_pose, ik_seed_state);
-      return inner_->searchPositionIK(
-          ik_pose, ik_seed_state, timeout, consistency_limits, solution, error_code,
-          bio_options ? *bio_options : options);
+      return searchPositionIK(
+          std::vector<geometry_msgs::msg::Pose>{ik_pose}, ik_seed_state, timeout,
+          consistency_limits, solution, IKCallbackFn(), error_code, options);
     }
 
     bool searchPositionIK(
@@ -169,10 +163,9 @@ namespace robin_moveit_plugins
         const kinematics::KinematicsQueryOptions &options =
             kinematics::KinematicsQueryOptions()) const override
     {
-      auto bio_options = makeCoupledOptions(ik_pose, ik_seed_state);
-      return inner_->searchPositionIK(
-          ik_pose, ik_seed_state, timeout, solution, solution_callback, error_code,
-          bio_options ? *bio_options : options);
+      return searchPositionIK(
+          std::vector<geometry_msgs::msg::Pose>{ik_pose}, ik_seed_state, timeout,
+          std::vector<double>(), solution, solution_callback, error_code, options);
     }
 
     bool searchPositionIK(
@@ -186,10 +179,9 @@ namespace robin_moveit_plugins
         const kinematics::KinematicsQueryOptions &options =
             kinematics::KinematicsQueryOptions()) const override
     {
-      auto bio_options = makeCoupledOptions(ik_pose, ik_seed_state);
-      return inner_->searchPositionIK(
-          ik_pose, ik_seed_state, timeout, consistency_limits, solution,
-          solution_callback, error_code, bio_options ? *bio_options : options);
+      return searchPositionIK(
+          std::vector<geometry_msgs::msg::Pose>{ik_pose}, ik_seed_state, timeout,
+          consistency_limits, solution, solution_callback, error_code, options);
     }
 
     bool searchPositionIK(
@@ -210,12 +202,18 @@ namespace robin_moveit_plugins
         return false;
       }
 
-      if (ik_poses.size() == 1)
+      // Caller-supplied BioIK options take precedence over the coupled goal stack.
+      if (ik_poses.size() == 1 && !bio_ik::toBioIKKinematicsQueryOptions(&options))
       {
-        auto bio_options = makeCoupledOptions(ik_poses[0], ik_seed_state, context_state);
-        return inner_->searchPositionIK(
-            ik_poses, ik_seed_state, timeout, consistency_limits, solution,
-            solution_callback, error_code, bio_options ? *bio_options : options, context_state);
+        std::vector<geometry_msgs::msg::Pose> poses;
+        auto bio_options = makeCoupledOptions(
+            ik_poses[0], ik_seed_state, context_state, poses);
+        if (bio_options)
+        {
+          return inner_->searchPositionIK(
+              poses, ik_seed_state, timeout, consistency_limits, solution,
+              solution_callback, error_code, *bio_options, context_state);
+        }
       }
 
       return inner_->searchPositionIK(
@@ -231,8 +229,13 @@ namespace robin_moveit_plugins
         const kinematics::KinematicsQueryOptions &options =
             kinematics::KinematicsQueryOptions()) const override
     {
-      return searchPositionIK(
-          ik_pose, ik_seed_state, default_timeout_, solution, error_code, options);
+      const bool success = searchPositionIK(
+          ik_pose, ik_seed_state, 0.0, solution, error_code, options);
+      if (!success && error_code.val == moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION)
+      {
+        error_code.val = moveit_msgs::msg::MoveItErrorCodes::TIMED_OUT;
+      }
+      return success;
     }
 
     bool getPositionIK(
@@ -244,7 +247,7 @@ namespace robin_moveit_plugins
             kinematics::KinematicsQueryOptions()) const
     {
       return searchPositionIK(
-          ik_poses, ik_seed_state, default_timeout_, std::vector<double>(), solution,
+          ik_poses, ik_seed_state, 0.0, std::vector<double>(), solution,
           IKCallbackFn(), error_code, options);
     }
 
@@ -253,41 +256,7 @@ namespace robin_moveit_plugins
         const std::vector<double> &joint_angles,
         std::vector<geometry_msgs::msg::Pose> &poses) const override
     {
-      if (!robot_model_ || joint_angles.size() != getJointNames().size())
-      {
-        return false;
-      }
-
-      moveit::core::RobotState state(robot_model_);
-      state.setToDefaultValues();
-      size_t cursor = 0;
-      for (const auto &joint_name : getJointNames())
-      {
-        const auto *joint_model = robot_model_->getJointModel(joint_name);
-        if (!joint_model)
-        {
-          return false;
-        }
-        for (size_t variable = 0; variable < joint_model->getVariableCount(); ++variable)
-        {
-          state.setVariablePosition(
-              joint_model->getFirstVariableIndex() + variable, joint_angles[cursor++]);
-        }
-      }
-      state.update();
-
-      poses.clear();
-      poses.reserve(link_names.size());
-      for (const auto &link_name : link_names)
-      {
-        const auto *link_model = robot_model_->getLinkModel(link_name);
-        if (!link_model)
-        {
-          return false;
-        }
-        poses.push_back(tf2::toMsg(state.getGlobalLinkTransform(link_model)));
-      }
-      return true;
+      return inner_->getPositionFK(link_names, joint_angles, poses);
     }
 
     const std::vector<std::string> &getJointNames() const override
@@ -306,52 +275,6 @@ namespace robin_moveit_plugins
     }
 
   private:
-    double getParameterDouble(
-        const rclcpp::Node::SharedPtr &node, const std::string &name, double default_value) const
-    {
-      if (!node)
-      {
-        return default_value;
-      }
-
-      const std::string scoped_name =
-          "robot_description_kinematics." + getGroupName() + "." + name;
-      const std::string group_scoped_name = getGroupName() + "." + name;
-      const std::vector<std::string> candidates = {scoped_name, group_scoped_name, name};
-
-      for (const auto &candidate : candidates)
-      {
-        if (node->has_parameter(candidate))
-        {
-          double value = default_value;
-          if (node->get_parameter(candidate, value))
-          {
-            return value;
-          }
-        }
-      }
-
-      for (const auto &candidate : candidates)
-      {
-        try
-        {
-          node->declare_parameter(candidate, default_value);
-        }
-        catch (...)
-        {
-        }
-        if (node->has_parameter(candidate))
-        {
-          double value = default_value;
-          if (node->get_parameter(candidate, value))
-          {
-            return value;
-          }
-        }
-      }
-      return default_value;
-    }
-
     std::string getParameterString(
         const rclcpp::Node::SharedPtr &node, const std::string &name) const
     {
@@ -397,26 +320,43 @@ namespace robin_moveit_plugins
       return {};
     }
 
+    // Returns options with replace=false so bio_ik keeps its default per-tip pose goals
+    // (poses_out carries one pose per inner tip: master target, others rigidly coupled).
     std::unique_ptr<bio_ik::BioIKKinematicsQueryOptions> makeCoupledOptions(
         const geometry_msgs::msg::Pose &master_pose,
         const std::vector<double> &ik_seed_state,
-        const moveit::core::RobotState *context_state = nullptr) const
+        const moveit::core::RobotState *context_state,
+        std::vector<geometry_msgs::msg::Pose> &poses_out) const
     {
-      if (master_link_.empty() || slave_link_.empty() || !robot_model_)
+      if (master_link_.empty() || !robot_model_)
+      {
+        return nullptr;
+      }
+
+      const auto &inner_tips = inner_->getTipFrames();
+      if (inner_tips.size() < 2)
       {
         return nullptr;
       }
 
       const auto *master_model = robot_model_->getLinkModel(master_link_);
-      const auto *slave_model = robot_model_->getLinkModel(slave_link_);
-      if (!master_model || !slave_model)
+      bool master_is_tip = false;
+      for (const auto &tip : inner_tips)
+      {
+        master_is_tip = master_is_tip || tip == master_link_;
+        if (!robot_model_->getLinkModel(tip))
+        {
+          return nullptr;
+        }
+      }
+      if (!master_model || !master_is_tip)
       {
         if (node_)
         {
           RCLCPP_WARN(
               node_->get_logger(),
-              "[RobinBioIK] Cannot build coupled goals: link '%s' or '%s' is missing",
-              master_link_.c_str(), slave_link_.c_str());
+              "[RobinBioIK] Cannot build coupled goals: master '%s' is not an IK tip",
+              master_link_.c_str());
         }
         return nullptr;
       }
@@ -431,84 +371,64 @@ namespace robin_moveit_plugins
         seed_state.setToDefaultValues();
       }
 
-      size_t cursor = 0;
-      for (const auto &joint_name : getJointNames())
+      if (!context_state)
       {
-        const auto *joint_model = robot_model_->getJointModel(joint_name);
-        if (!joint_model)
+        size_t cursor = 0;
+        for (const auto &joint_name : getJointNames())
         {
-          continue;
-        }
-        for (size_t variable = 0; variable < joint_model->getVariableCount(); ++variable)
-        {
-          if (cursor < ik_seed_state.size())
+          const auto *joint_model = robot_model_->getJointModel(joint_name);
+          if (!joint_model)
           {
-            seed_state.setVariablePosition(
-                joint_model->getFirstVariableIndex() + variable, ik_seed_state[cursor]);
+            continue;
           }
-          ++cursor;
+          for (size_t variable = 0; variable < joint_model->getVariableCount(); ++variable)
+          {
+            if (cursor < ik_seed_state.size())
+            {
+              seed_state.setVariablePosition(
+                  joint_model->getFirstVariableIndex() + variable, ik_seed_state[cursor]);
+            }
+            ++cursor;
+          }
         }
       }
       seed_state.update();
 
-      // Base transform: converts poses from getBaseFrame() to robot model root frame
-      const Eigen::Isometry3d base_transform =
-          seed_state.getFrameTransform(getBaseFrame());
+      Eigen::Isometry3d master_target_in_base;
+      tf2::fromMsg(master_pose, master_target_in_base);
+      const Eigen::Isometry3d master_current_inv =
+          seed_state.getGlobalLinkTransform(master_model).inverse();
 
-      Eigen::Isometry3d master_pose_in_base;
-      tf2::fromMsg(master_pose, master_pose_in_base);
-      const Eigen::Isometry3d master_target_model =
-          base_transform * master_pose_in_base;
-
-      // Current global link transforms in model root frame
-      const Eigen::Isometry3d master_current_model =
-          seed_state.getGlobalLinkTransform(master_model);
-      const Eigen::Isometry3d slave_current_model =
-          seed_state.getGlobalLinkTransform(slave_model);
-
-      // Relative transform from master to slave link
-      const Eigen::Isometry3d relative_slave =
-          master_current_model.inverse() * slave_current_model;
-
-      // Target slave pose in model root frame
-      const Eigen::Isometry3d slave_target_model =
-          master_target_model * relative_slave;
+      // Every tip keeps its seed pose relative to the master (poses are in base frame).
+      poses_out.clear();
+      for (const auto &tip : inner_tips)
+      {
+        const Eigen::Isometry3d relative =
+            master_current_inv * seed_state.getGlobalLinkTransform(robot_model_->getLinkModel(tip));
+        poses_out.push_back(tf2::toMsg(master_target_in_base * relative));
+      }
 
       auto options = std::make_unique<bio_ik::BioIKKinematicsQueryOptions>();
-      options->replace = true;
-      options->goals.push_back(
-          makePoseGoal(master_link_, master_target_model, master_pose_weight_));
-      options->goals.push_back(
-          makePoseGoal(slave_link_, slave_target_model, slave_pose_weight_));
-      options->goals.push_back(
-          std::make_unique<bio_ik::MinimalDisplacementGoal>(0.5, true));
-      options->goals.push_back(
-          std::make_unique<bio_ik::AvoidJointLimitsGoal>(0.2, true));
-      options->goals.push_back(
-          std::make_unique<bio_ik::CenterJointsGoal>(0.1, true));
+      options->replace = false;
+      addCustomGoals(*options);
       return options;
     }
 
-    static std::unique_ptr<bio_ik::PoseGoal> makePoseGoal(
-        const std::string &link_name, const Eigen::Isometry3d &pose, double weight)
+    // Extension point: extra goals applied on top of bio_ik's default goals.
+    void addCustomGoals(bio_ik::BioIKKinematicsQueryOptions &options) const
     {
-      tf2::Vector3 position(
-          pose.translation().x(), pose.translation().y(), pose.translation().z());
-      Eigen::Quaterniond orientation(pose.rotation());
-      tf2::Quaternion rotation(
-          orientation.x(), orientation.y(), orientation.z(), orientation.w());
-      auto goal = std::make_unique<bio_ik::PoseGoal>(link_name, position, rotation, weight);
-      goal->setRotationScale(0.5);
-      return goal;
+      options.goals.push_back(
+          std::make_unique<bio_ik::MinimalDisplacementGoal>(0.5, true));
+      options.goals.push_back(
+          std::make_unique<bio_ik::AvoidJointLimitsGoal>(0.2, true));
+      options.goals.push_back(
+          std::make_unique<bio_ik::CenterJointsGoal>(0.1, true));
     }
 
     rclcpp::Node::SharedPtr node_;
     std::shared_ptr<pluginlib::ClassLoader<kinematics::KinematicsBase>> loader_;
     std::shared_ptr<kinematics::KinematicsBase> inner_;
     std::string master_link_;
-    std::string slave_link_;
-    double master_pose_weight_{1.0};
-    double slave_pose_weight_{1.0};
   };
 
 } // namespace robin_moveit_plugins

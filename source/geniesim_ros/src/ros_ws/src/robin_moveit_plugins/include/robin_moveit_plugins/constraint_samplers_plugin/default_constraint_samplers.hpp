@@ -545,7 +545,8 @@ protected:
    */
   bool callIK(const geometry_msgs::msg::Pose& ik_query,
               const kinematics::KinematicsBase::IKCallbackFn& adapted_ik_validity_callback, double timeout,
-              moveit::core::RobotState& state, bool use_as_seed);
+              moveit::core::RobotState& state, bool use_as_seed,
+              const moveit::core::RobotState& reference_state);
   bool sampleHelper(moveit::core::RobotState& state, const moveit::core::RobotState& reference_state,
                     unsigned int max_attempts);
   bool validate(moveit::core::RobotState& state) const;

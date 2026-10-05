@@ -644,7 +644,7 @@ bool IKConstraintSampler::sampleHelper(moveit::core::RobotState& state, const mo
     ik_query.orientation.z = quat.z();
     ik_query.orientation.w = quat.w();
 
-    if (callIK(ik_query, adapted_ik_validity_callback, ik_timeout_, state, a == 0))
+    if (callIK(ik_query, adapted_ik_validity_callback, ik_timeout_, state, a == 0, reference_state))
       return true;
   }
   return false;
@@ -661,7 +661,8 @@ bool IKConstraintSampler::validate(moveit::core::RobotState& state) const
 
 bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
                                  const kinematics::KinematicsBase::IKCallbackFn& adapted_ik_validity_callback,
-                                 double timeout, moveit::core::RobotState& state, bool use_as_seed)
+                                 double timeout, moveit::core::RobotState& state, bool use_as_seed,
+                                 const moveit::core::RobotState& reference_state)
 {
   const std::vector<size_t>& ik_joint_bijection = jmg_->getKinematicsSolverJointBijection();
   std::vector<double> seed(ik_joint_bijection.size(), 0.0);
@@ -683,10 +684,11 @@ bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
 
   std::vector<double> ik_sol;
   moveit_msgs::msg::MoveItErrorCodes error;
+  const std::vector<geometry_msgs::msg::Pose> ik_poses{ ik_query };
 
-  if (adapted_ik_validity_callback ?
-          kb_->searchPositionIK(ik_query, seed, timeout, ik_sol, adapted_ik_validity_callback, error) :
-          kb_->searchPositionIK(ik_query, seed, timeout, ik_sol, error))
+  if (kb_->searchPositionIK(ik_poses, seed, timeout, std::vector<double>(), ik_sol,
+                            adapted_ik_validity_callback, error,
+                            kinematics::KinematicsQueryOptions(), &reference_state))
   {
     assert(ik_sol.size() == ik_joint_bijection.size());
     std::vector<double> solution(ik_joint_bijection.size());
