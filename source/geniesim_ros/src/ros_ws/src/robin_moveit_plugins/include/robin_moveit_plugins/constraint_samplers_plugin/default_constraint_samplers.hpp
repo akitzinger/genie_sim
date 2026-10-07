@@ -550,6 +550,9 @@ protected:
   bool sampleHelper(moveit::core::RobotState& state, const moveit::core::RobotState& reference_state,
                     unsigned int max_attempts);
   bool validate(moveit::core::RobotState& state) const;
+  bool validateRelativePose(moveit::core::RobotState& state, const moveit::core::RobotState& reference_state) const;
+  void setFixedReferenceState(const moveit::core::RobotState& fixed_state);
+
 
   random_numbers::RandomNumberGenerator random_number_generator_; /**< \brief Random generator used by the sampler */
   IKSamplingPose sampling_pose_;                                  /**< \brief Holder for the pose used for sampling */
@@ -561,5 +564,11 @@ protected:
   bool need_eef_to_ik_tip_transform_; /**< \brief True if the tip frame of the inverse kinematic is different than the
                                         frame of the end effector */
   Eigen::Isometry3d eef_to_ik_tip_transform_; /**< \brief Holds the transformation from end effector to IK tip frame */
+
+  std::string first_tip_link_ = "arm_l_end_link";  /**< \brief Holds the name of the first tip link */
+  std::string second_tip_link_ = "arm_r_end_link"; /**< \brief Holds the name of the second tip link */
+  double position_tolerance_ = 0.01;   /**< \brief Position tolerance for relative pose validation */
+  double orientation_tolerance_ = 0.01; /**< \brief Orientation tolerance for relative pose validation */
+  std::shared_ptr<moveit::core::RobotState> initial_state_; /**< \brief Holds the initial state used for IK sampling */
 };
 }  // namespace constraint_samplers

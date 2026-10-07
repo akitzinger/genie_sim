@@ -263,9 +263,9 @@ int main(int argc, char** argv)
   ocm.orientation.y = start_pose1.orientation.y;
   ocm.orientation.z = start_pose1.orientation.z;
   ocm.orientation.w = start_pose1.orientation.w;
-  ocm.absolute_x_axis_tolerance = 0.6;
-  ocm.absolute_y_axis_tolerance = 0.6;
-  ocm.absolute_z_axis_tolerance = 0.6;
+  ocm.absolute_x_axis_tolerance = 0.3;
+  ocm.absolute_y_axis_tolerance = 0.3;
+  ocm.absolute_z_axis_tolerance = 0.3;
   ocm.weight = 1.0;
 
   // Position Box Constraints
@@ -279,8 +279,8 @@ int main(int argc, char** argv)
 
   geometry_msgs::msg::Pose box_pose;
   box_pose.position.x = 0.55;
-  box_pose.position.y = 0;
-  box_pose.position.z = 0.2;
+  box_pose.position.y = 0.2;
+  box_pose.position.z = 0.0;
   box_pose.orientation.x = 0.0;
   box_pose.orientation.y = 0.0;
   box_pose.orientation.z = 0.0;

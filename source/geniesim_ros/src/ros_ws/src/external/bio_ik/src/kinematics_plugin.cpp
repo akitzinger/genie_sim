@@ -37,7 +37,6 @@
 #include <moveit/utils/logger.hpp>
 
 #include <atomic>
-#include <algorithm>
 #include <iomanip>
 #include <mutex>
 #include <random>
@@ -137,8 +136,6 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
   mutable std::vector<double> state, temp;
   mutable std::unique_ptr<moveit::core::RobotState> temp_state;
   mutable std::vector<Frame> tipFrames;
-  // OMPL calls one solver instance from several threads; all members above are per-call scratch state.
-  mutable std::mutex search_mutex_;
   RobotInfo robot_info;
   bool enable_profiler;
   rclcpp::Node::SharedPtr node_;
@@ -153,11 +150,6 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
   const std::vector<std::string> & getLinkNames() const override
   {
     return link_names;
-  }
-
-  const std::string & getTipFrame() const override
-  {
-    return tip_frames_.front();
   }
 
   bool getPositionFK(
@@ -264,55 +256,10 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
       }
     }
 
-    const std::vector<std::string> configured_tip_frames = tip_frames_;
-    std::vector<std::string> end_effector_tips;
-    if (joint_model_group->getEndEffectorTips(end_effector_tips) && !end_effector_tips.empty()) {
-      tip_frames_ = configured_tip_frames;
-      for (const std::string & tip : end_effector_tips) {
-        if (std::find(tip_frames_.begin(), tip_frames_.end(), tip) == tip_frames_.end()) {
-          tip_frames_.push_back(tip);
-        }
-      }
-    }
-
-    auto get_group_string_parameter = [&](const std::string & name) {
-      const std::vector<std::string> candidates = {
-        "robot_description_kinematics." + group_name + "." + name,
-        group_name + "." + name,
-        name
-      };
-      for (const std::string & candidate : candidates) {
-        std::string value;
-        if (node_->has_parameter(candidate) && node_->get_parameter(candidate, value) && !value.empty()) {
-          return value;
-        }
-      }
-      for (const std::string & candidate : candidates) {
-        try {
-          node_->declare_parameter(candidate, std::string{});
-        } catch (...) {
-        }
-        std::string value;
-        if (node_->has_parameter(candidate) && node_->get_parameter(candidate, value) && !value.empty()) {
-          return value;
-        }
-      }
-      return std::string{};
-    };
-
-    const std::string master_tip = get_group_string_parameter("kinematics_solver_master_link");
-    const std::string slave_tip = get_group_string_parameter("kinematics_solver_slave_link");
-    if (!master_tip.empty() && robot_model_->getLinkModel(master_tip)) {
-      std::vector<std::string> ordered_tips{ master_tip };
-      if (!slave_tip.empty() && slave_tip != master_tip && robot_model_->getLinkModel(slave_tip)) {
-        ordered_tips.push_back(slave_tip);
-      }
-      for (const std::string & tip : tip_frames_) {
-        if (std::find(ordered_tips.begin(), ordered_tips.end(), tip) == ordered_tips.end()) {
-          ordered_tips.push_back(tip);
-        }
-      }
-      tip_frames_ = std::move(ordered_tips);
+    auto tips2 = tip_frames_;
+    joint_model_group->getEndEffectorTips(tips2);
+    if (!tips2.empty()) {
+      tip_frames_ = tips2;
     }
 
     link_names = tip_frames_;
@@ -411,8 +358,8 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
       search_discretization);
     if (!load(group_name)) {return false;}
     RCLCPP_INFO(
-      node->get_logger(), "[BioIK] Initialized for '%s' (master='%s', %zu tips)",
-      group_name.c_str(), tip_frames_.front().c_str(), tip_frames_.size());
+      node->get_logger(), "[BioIK] Initialized for '%s' (%zu tips)",
+      group_name.c_str(), tip_frames.size());
     return true;
   }
 
@@ -492,7 +439,6 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
     kinematics::KinematicsQueryOptions(),
     const moveit::core::RobotState * context_state = NULL) const
   {
-    std::lock_guard<std::mutex> search_lock(search_mutex_);
     double t0 = wallTime();
 
     for (size_t i = 0; i < ik_poses.size(); ++i) {
@@ -538,51 +484,6 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
     }
 
     if (!bio_ik_options || !bio_ik_options->replace) {
-      std::vector<geometry_msgs::msg::Pose> target_poses = ik_poses;
-      std::unique_ptr<moveit::core::RobotState> relative_pose_state;
-      if (target_poses.size() == 1 && tip_frames_.size() > 1) {
-        relative_pose_state = std::make_unique<moveit::core::RobotState>(robot_model_);
-        if (context_state) {
-          *relative_pose_state = *context_state;
-        } else {
-          relative_pose_state->setToDefaultValues();
-          size_t seed_index = 0;
-          for (const auto & joint_name : getJointNames()) {
-            const auto * joint_model = robot_model_->getJointModel(joint_name);
-            if (!joint_model) {
-              continue;
-            }
-            for (size_t variable = 0; variable < joint_model->getVariableCount(); ++variable) {
-              if (seed_index >= ik_seed_state.size()) {
-                error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
-                return false;
-              }
-              relative_pose_state->setVariablePosition(
-                joint_model->getFirstVariableIndex() + variable, ik_seed_state[seed_index++]);
-            }
-          }
-        }
-        relative_pose_state->update();
-
-        Eigen::Isometry3d master_target;
-        tf2::fromMsg(ik_poses.front(), master_target);
-        const Eigen::Isometry3d master_initial =
-          relative_pose_state->getGlobalLinkTransform(tip_frames_.front());
-        for (size_t i = 1; i < tip_frames_.size(); ++i) {
-          const Eigen::Isometry3d master_to_tip =
-            master_initial.inverse() * relative_pose_state->getGlobalLinkTransform(tip_frames_[i]);
-          target_poses.push_back(tf2::toMsg(master_target * master_to_tip));
-        }
-      }
-
-      if (target_poses.size() != tip_frames_.size()) {
-        RCLCPP_ERROR(
-          getLogger(), "Expected %zu IK poses for the configured tips, received %zu",
-          tip_frames_.size(), target_poses.size());
-        error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
-        return false;
-      }
-
       tipFrames.clear();
       // Use getFrameTransform() (not getGlobalLinkTransform(string)) so that
       // a virtual model frame (e.g. SRDF planar virtual_joint with
@@ -590,13 +491,11 @@ struct BioIKKinematicsPlugin : kinematics::KinematicsBase
       // "Invalid link". This matches the pattern used by PickNik's
       // stretch_kinematics_plugin for mobile-base + arm composite groups.
       // See moveit_core RobotState::getFrameInfo (robot_state.cpp:1129).
-      for (size_t i = 0; i < target_poses.size(); i++) {
+      for (size_t i = 0; i < ik_poses.size(); i++) {
         Eigen::Isometry3d p, r;
-        tf2::fromMsg(target_poses[i], p);
-        const moveit::core::RobotState * pose_context_state =
-          relative_pose_state ? relative_pose_state.get() : context_state;
-        if (pose_context_state) {
-          r = pose_context_state->getFrameTransform(getBaseFrame());
+        tf2::fromMsg(ik_poses[i], p);
+        if (context_state) {
+          r = context_state->getFrameTransform(getBaseFrame());
         } else {
           if (i == 0) {
             temp_state->setToDefaultValues();
@@ -1205,17 +1104,15 @@ private:
 
     std::vector<geometry_msgs::msg::Pose> poses(n_tips);
     poses[0] = ik_pose;
-    Eigen::Isometry3d master_target;
-    tf2::fromMsg(ik_pose, master_target);
-    const Eigen::Isometry3d master_initial = rs->getGlobalLinkTransform(tip_frames_.front());
     // getFrameTransform() handles virtual model frames (e.g. SRDF planar
     // virtual_joint parent_frame="map") by returning identity, which is
     // the mathematically correct value (the model frame IS the global
     // frame). Mirrors PickNik stretch_kinematics_plugin pattern.
     for (size_t i = 1; i < n_tips; ++i) {
+      const Eigen::Isometry3d & base_tf = rs->getFrameTransform(getBaseFrame());
       const Eigen::Isometry3d & tip_tf = rs->getFrameTransform(tip_frames_[i]);
-      const Eigen::Isometry3d master_to_tip = master_initial.inverse() * tip_tf;
-      poses[i] = tf2::toMsg(master_target * master_to_tip);
+      Eigen::Isometry3d rel = base_tf.inverse() * tip_tf;
+      poses[i] = tf2::toMsg(rel);
     }
     return poses;
   }

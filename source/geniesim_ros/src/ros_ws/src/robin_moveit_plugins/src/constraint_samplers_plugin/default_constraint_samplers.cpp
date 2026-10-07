@@ -253,6 +253,10 @@ void IKConstraintSampler::clear()
 bool IKConstraintSampler::configure(const IKSamplingPose& sp)
 {
   clear();
+
+  // Set the initial fixed reference state for the sampler
+  setFixedReferenceState(scene_->getCurrentState());
+
   if (!sp.position_constraint_ && !sp.orientation_constraint_)
     return false;
   if ((!sp.orientation_constraint_ && !sp.position_constraint_->enabled()) ||
@@ -294,6 +298,9 @@ bool IKConstraintSampler::configure(const IKSamplingPose& sp)
 
 bool IKConstraintSampler::configure(const moveit_msgs::msg::Constraints& constr)
 {
+  // Set the initial fixed reference state for the sampler
+  setFixedReferenceState(scene_->getCurrentState());
+
   for (std::size_t p = 0; p < constr.position_constraints.size(); ++p)
   {
     for (std::size_t o = 0; o < constr.orientation_constraints.size(); ++o)
@@ -644,7 +651,7 @@ bool IKConstraintSampler::sampleHelper(moveit::core::RobotState& state, const mo
     ik_query.orientation.z = quat.z();
     ik_query.orientation.w = quat.w();
 
-    if (callIK(ik_query, adapted_ik_validity_callback, ik_timeout_, state, a == 0, reference_state))
+    if (callIK(ik_query, adapted_ik_validity_callback, ik_timeout_, state, a == 0, *initial_state_))
       return true;
   }
   return false;
@@ -657,6 +664,45 @@ bool IKConstraintSampler::validate(moveit::core::RobotState& state) const
           sampling_pose_.orientation_constraint_->decide(state, verbose_).satisfied) &&
          (!sampling_pose_.position_constraint_ ||
           sampling_pose_.position_constraint_->decide(state, verbose_).satisfied);
+}
+
+bool IKConstraintSampler::validateRelativePose(moveit::core::RobotState& state, const moveit::core::RobotState& reference_state) const
+{ 
+  // Make sure FK is current for the state we were handed (reference_state is const, so
+  // the caller must have updated it already, e.g. after setting its joint values).
+  state.updateLinkTransforms();
+
+  // Relative pose of tip 2 expressed in the frame of tip 1: T_rel = T_1^-1 * T_2
+  const Eigen::Isometry3d rel_state =
+      state.getGlobalLinkTransform(first_tip_link_).inverse() * state.getGlobalLinkTransform(second_tip_link_);
+
+  const Eigen::Isometry3d rel_reference = reference_state.getGlobalLinkTransform(first_tip_link_).inverse() *
+                                          reference_state.getGlobalLinkTransform(second_tip_link_);
+                                        
+  const Eigen::Quaterniond rel_quat(rel_reference.rotation());
+
+  RCLCPP_DEBUG(getLogger(), "rel_reference position = [%f, %f, %f], orientation = [%f, %f, %f, %f]",
+              rel_reference.translation().x(), rel_reference.translation().y(), rel_reference.translation().z(),
+              rel_quat.x(), rel_quat.y(), rel_quat.z(), rel_quat.w());
+
+  // Deviation of the current relative pose from the reference relative pose
+  const Eigen::Isometry3d delta = rel_reference.inverse() * rel_state;
+
+  const double position_error = delta.translation().norm();
+  const double orientation_error = Eigen::AngleAxisd(delta.linear()).angle();  // in [0, pi]
+
+  bool valid = position_error <= position_tolerance_ && orientation_error <= orientation_tolerance_;
+
+  if (!valid)
+  {
+    RCLCPP_WARN(getLogger(), "Relative pose validation failed: position error = %f, orientation error = %f", position_error, orientation_error);
+  }
+  else
+  {
+    RCLCPP_DEBUG(getLogger(), "Relative pose validation succeeded: position error = %f, orientation error = %f", position_error, orientation_error);
+  }    
+
+  return valid;
 }
 
 bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
@@ -696,7 +742,7 @@ bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
       solution[ik_joint_bijection[i]] = ik_sol[i];
     state.setJointGroupPositions(jmg_, solution);
 
-    return validate(state);
+    return validate(state) && validateRelativePose(state, *initial_state_);
   }
   else
   {
@@ -712,6 +758,13 @@ bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
     }
   }
   return false;
+}
+
+void IKConstraintSampler::setFixedReferenceState(const moveit::core::RobotState& state)
+{
+  // Deep copy so changes outside don't affect this sampler
+  initial_state_ = std::make_shared<moveit::core::RobotState>(state);
+  
 }
 
 }  // end of namespace constraint_samplers

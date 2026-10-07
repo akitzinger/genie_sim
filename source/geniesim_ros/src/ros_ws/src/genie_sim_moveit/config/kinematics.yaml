@@ -271,10 +271,11 @@ simple_dual_arm_l:
   mode: bio2_memetic 
   kinematics_solver_ik_links:
     - arm_l_end_link
-  kinematics_solver_master_link: arm_l_end_link
-  kinematics_solver_slave_link: arm_r_end_link
-  kinematics_solver_master_pose_weight: 1.0
-  kinematics_solver_slave_pose_weight: 1.0
+  minimal_displacement_weight: 0.1
+  center_joints_weight: 0.0
+  avoid_joint_limits_weight: 0.0
+  rotation_scale: 0.5
+
 simple_dual_arm_r:
   kinematics_solver: robin_moveit_plugins/RobinIKPlugin
   kinematics_solver_search_resolution: 0.005
@@ -283,7 +284,7 @@ simple_dual_arm_r:
   mode: bio2_memetic 
   kinematics_solver_ik_links:
     - arm_r_end_link
-  kinematics_solver_master_link: arm_r_end_link
-  kinematics_solver_slave_link: arm_l_end_link
-  kinematics_solver_master_pose_weight: 1.0
-  kinematics_solver_slave_pose_weight: 1.0
+  minimal_displacement_weight: 0.1
+  center_joints_weight: 0.0
+  avoid_joint_limits_weight: 0.0
+  rotation_scale: 0.5
