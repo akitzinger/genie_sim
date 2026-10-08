@@ -54,7 +54,7 @@ const std::string PoseModelStateSpace::PARAMETERIZATION_TYPE = "PoseModel";
 
 PoseModelStateSpace::PoseModelStateSpace(const ModelBasedStateSpaceSpecification& spec) : ModelBasedStateSpace(spec)
 {
-  jump_factor_ = 1.5;  // \todo make this a param
+  jump_factor_ = 5.0;  // \todo make this a param
 
   if (spec.joint_model_group_->getGroupKinematics().first)
   {
@@ -79,6 +79,12 @@ PoseModelStateSpace::PoseModelStateSpace(const ModelBasedStateSpaceSpecification
 }
 
 PoseModelStateSpace::~PoseModelStateSpace() = default;
+
+void PoseModelStateSpace::setIKContextState(const moveit::core::RobotState& state)
+{
+  ik_context_state_ = std::make_shared<moveit::core::RobotState>(state);
+  ik_context_state_->updateLinkTransforms();
+}
 
 double PoseModelStateSpace::distance(const ompl::base::State* state1, const ompl::base::State* state2) const
 {
@@ -156,7 +162,10 @@ void PoseModelStateSpace::interpolate(const ompl::base::State* from, const ompl:
 
     // reject if Cartesian interpolation yields much larger distance than joint interpolation
     if (d_cart > jump_factor_ * d_joint)
+    { 
+      RCLCPP_WARN(getLogger(), "Rejecting state due to large Cartesian interpolation distance (jump_factor).");
       state->as<StateType>()->markInvalid();
+    }
   }
 }
 
@@ -209,7 +218,8 @@ bool PoseModelStateSpace::PoseComponent::computeStateFK(StateType* full_state, u
   return true;
 }
 
-bool PoseModelStateSpace::PoseComponent::computeStateIK(StateType* full_state, unsigned int idx) const
+bool PoseModelStateSpace::PoseComponent::computeStateIK(StateType* full_state, unsigned int idx,
+                                                        const moveit::core::RobotState* context_state) const
 {
   // read the values from the joint state, in the order expected by the kinematics solver; use these as the seed
   std::vector<double> seed_values(bijection_.size());
@@ -238,13 +248,20 @@ bool PoseModelStateSpace::PoseComponent::computeStateIK(StateType* full_state, u
   // run IK
   std::vector<double> solution(bijection_.size());
   moveit_msgs::msg::MoveItErrorCodes err_code;
-  if (!kinematics_solver_->getPositionIK(pose, seed_values, solution, err_code))
+  RCLCPP_DEBUG(getLogger(), "[2] Computing IK for Interpolation");
+  if (context_state)
   {
-    if (err_code.val != moveit_msgs::msg::MoveItErrorCodes::TIMED_OUT ||
-        !kinematics_solver_->searchPositionIK(pose, seed_values, kinematics_solver_->getDefaultTimeout() * 2.0,
-                                              solution, err_code))
+    if (!kinematics_solver_->searchPositionIK(
+            std::vector<geometry_msgs::msg::Pose>{ pose }, seed_values, kinematics_solver_->getDefaultTimeout() * 2.0,
+            std::vector<double>(), solution, kinematics::KinematicsBase::IKCallbackFn(), err_code,
+            kinematics::KinematicsQueryOptions(), context_state))
       return false;
   }
+  else if (!kinematics_solver_->getPositionIK(pose, seed_values, solution, err_code) &&
+           (err_code.val != moveit_msgs::msg::MoveItErrorCodes::TIMED_OUT ||
+            !kinematics_solver_->searchPositionIK(pose, seed_values, kinematics_solver_->getDefaultTimeout() * 2.0,
+                                                  solution, err_code)))
+    return false;
 
   for (std::size_t i = 0; i < bijection_.size(); ++i)
     full_state->values[bijection_[i]] = solution[i];
@@ -274,7 +291,7 @@ bool PoseModelStateSpace::computeStateIK(ompl::base::State* state) const
     return true;
   for (std::size_t i = 0; i < poses_.size(); ++i)
   {
-    if (!poses_[i].computeStateIK(state->as<StateType>(), i))
+    if (!poses_[i].computeStateIK(state->as<StateType>(), i, ik_context_state_.get()))
     {
       state->as<StateType>()->markInvalid();
       return false;

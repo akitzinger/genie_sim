@@ -75,6 +75,7 @@
 #include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/joint_model_state_space.hpp>
 #include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space_factory.hpp>
 #include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/work_space/pose_model_state_space.hpp>
 #include <robin_moveit_plugins/ompl_interface/parameterization/work_space/pose_model_state_space_factory.hpp>
 #include <robin_moveit_plugins/ompl_interface/detail/ompl_constraints.hpp>
 
@@ -589,6 +590,8 @@ ModelBasedPlanningContextPtr PlanningContextManager::getPlanningContext(
     context->setPlanningScene(planning_scene);
     context->setMotionPlanRequest(req);
     context->setCompleteInitialState(*start_state);
+    if (auto* pose_state_space = dynamic_cast<PoseModelStateSpace*>(context->getOMPLStateSpace().get()))
+      pose_state_space->setIKContextState(context->getCompleteInitialRobotState());
 
     context->setPlanningVolume(req.workspace_parameters);
     if (!context->setPathConstraints(req.path_constraints, &error_code))

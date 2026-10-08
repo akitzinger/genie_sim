@@ -100,6 +100,8 @@ public:
   PoseModelStateSpace(const ModelBasedStateSpaceSpecification& spec);
   ~PoseModelStateSpace() override;
 
+  void setIKContextState(const moveit::core::RobotState& state);
+
   ompl::base::State* allocState() const override;
   void freeState(ompl::base::State* state) const override;
   void copyState(ompl::base::State* destination, const ompl::base::State* source) const override;
@@ -130,7 +132,7 @@ private:
                   const moveit::core::JointModelGroup::KinematicsSolver& k);
 
     bool computeStateFK(StateType* full_state, unsigned int idx) const;
-    bool computeStateIK(StateType* full_state, unsigned int idx) const;
+    bool computeStateIK(StateType* full_state, unsigned int idx, const moveit::core::RobotState* context_state) const;
 
     bool operator<(const PoseComponent& o) const
     {
@@ -145,6 +147,7 @@ private:
   };
 
   std::vector<PoseComponent> poses_;
+  std::shared_ptr<moveit::core::RobotState> ik_context_state_;
   double jump_factor_;
 };
 }  // namespace ompl_interface

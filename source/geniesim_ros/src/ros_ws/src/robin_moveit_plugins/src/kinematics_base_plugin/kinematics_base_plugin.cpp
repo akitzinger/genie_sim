@@ -365,7 +365,25 @@ namespace robin_moveit_plugins
         return nullptr;
       }
 
-      // relative pose of the second tip link with respect to the first tip link
+      if (context_state)
+      {
+        relative_initial_pose = context_state->getGlobalLinkTransform(first_tip_link_).inverse() *
+                        context_state->getGlobalLinkTransform(second_tip_link_);
+
+        RCLCPP_DEBUG(getLogger(), "Relative pose calculated. Position: %f %f %f Orientation: %f %f %f", 
+                    relative_initial_pose.translation().x(),
+                    relative_initial_pose.translation().y(),
+                    relative_initial_pose.translation().z(),
+                    relative_initial_pose.rotation().eulerAngles(0, 1, 2).x(),
+                    relative_initial_pose.rotation().eulerAngles(0, 1, 2).y(),
+                    relative_initial_pose.rotation().eulerAngles(0, 1, 2).z());
+      }
+      else
+      {
+        RCLCPP_ERROR(getLogger(), "No context state for initial relative pose received.");
+      }
+
+      // pose of the second tip link with respect to the first tip link
       Eigen::Isometry3d first_tip_target;
       tf2::fromMsg(single_tip_pose, first_tip_target);
       const Eigen::Isometry3d second_tip_target = first_tip_target * relative_initial_pose;
@@ -408,12 +426,7 @@ namespace robin_moveit_plugins
     
     std::string first_tip_link_ = "arm_l_end_link";
     std::string second_tip_link_ = "arm_r_end_link";
-    const Eigen::Isometry3d relative_initial_pose =
-        Eigen::Translation3d(0.029433, 0.000006, 0.329343) *
-        Eigen::AngleAxisd(0.002945, Eigen::Vector3d::UnitX()) *
-        Eigen::AngleAxisd(-2.965842, Eigen::Vector3d::UnitY()) *
-        Eigen::AngleAxisd(-3.140918, Eigen::Vector3d::UnitZ());
-      };
+  };
 
 } // namespace robin_moveit_plugins
 

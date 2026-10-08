@@ -551,7 +551,7 @@ protected:
                     unsigned int max_attempts);
   bool validate(moveit::core::RobotState& state) const;
   bool validateRelativePose(moveit::core::RobotState& state, const moveit::core::RobotState& reference_state) const;
-  void setFixedReferenceState(const moveit::core::RobotState& fixed_state);
+  void setFixedInitialState(const moveit::core::RobotState& fixed_state);
 
 
   random_numbers::RandomNumberGenerator random_number_generator_; /**< \brief Random generator used by the sampler */

@@ -255,7 +255,7 @@ bool IKConstraintSampler::configure(const IKSamplingPose& sp)
   clear();
 
   // Set the initial fixed reference state for the sampler
-  setFixedReferenceState(scene_->getCurrentState());
+  setFixedInitialState(scene_->getCurrentState());
 
   if (!sp.position_constraint_ && !sp.orientation_constraint_)
     return false;
@@ -299,7 +299,7 @@ bool IKConstraintSampler::configure(const IKSamplingPose& sp)
 bool IKConstraintSampler::configure(const moveit_msgs::msg::Constraints& constr)
 {
   // Set the initial fixed reference state for the sampler
-  setFixedReferenceState(scene_->getCurrentState());
+  setFixedInitialState(scene_->getCurrentState());
 
   for (std::size_t p = 0; p < constr.position_constraints.size(); ++p)
   {
@@ -730,11 +730,10 @@ bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
 
   std::vector<double> ik_sol;
   moveit_msgs::msg::MoveItErrorCodes error;
-  const std::vector<geometry_msgs::msg::Pose> ik_poses{ ik_query };
 
-  if (kb_->searchPositionIK(ik_poses, seed, timeout, std::vector<double>(), ik_sol,
-                            adapted_ik_validity_callback, error,
-                            kinematics::KinematicsQueryOptions(), &reference_state))
+  if (kb_->searchPositionIK(std::vector<geometry_msgs::msg::Pose>{ ik_query }, seed, timeout, std::vector<double>(),
+                            ik_sol, adapted_ik_validity_callback, error, kinematics::KinematicsQueryOptions(),
+                            &reference_state))
   {
     assert(ik_sol.size() == ik_joint_bijection.size());
     std::vector<double> solution(ik_joint_bijection.size());
@@ -760,7 +759,7 @@ bool IKConstraintSampler::callIK(const geometry_msgs::msg::Pose& ik_query,
   return false;
 }
 
-void IKConstraintSampler::setFixedReferenceState(const moveit::core::RobotState& state)
+void IKConstraintSampler::setFixedInitialState(const moveit::core::RobotState& state)
 {
   // Deep copy so changes outside don't affect this sampler
   initial_state_ = std::make_shared<moveit::core::RobotState>(state);

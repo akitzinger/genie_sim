@@ -21,5 +21,6 @@
 
 namespace robin_moveit_plugins
 {
+    Eigen::Isometry3d relative_initial_pose;
 
 } // namespace robin_moveit_plugins
