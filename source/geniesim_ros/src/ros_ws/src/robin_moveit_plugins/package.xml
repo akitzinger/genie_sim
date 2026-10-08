@@ -19,6 +19,7 @@
   <depend>moveit_msgs</depend>
   <depend>moveit_kinematics</depend>
   <depend>bio_ik</depend>
+  <depend>ompl</depend>
   <depend>ament_index_cpp</depend>
 
   <build_depend>eigen</build_depend>

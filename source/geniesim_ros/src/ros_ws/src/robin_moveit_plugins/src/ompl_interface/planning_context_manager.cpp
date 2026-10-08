@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/planning_context_manager.hpp>
+#include <robin_moveit_plugins/ompl_interface/planning_context_manager.hpp>
 #include <moveit/robot_state/conversions.hpp>
 #include <moveit/utils/logger.hpp>
 
@@ -71,12 +71,12 @@
 #include <ompl/base/ConstrainedSpaceInformation.h>
 #include <ompl/base/spaces/constraint/ProjectedStateSpace.h>
 
-#include <ompl_interface/parameterization/joint_space/joint_model_state_space_factory.hpp>
-#include <ompl_interface/parameterization/joint_space/joint_model_state_space.hpp>
-#include <ompl_interface/parameterization/joint_space/constrained_planning_state_space_factory.hpp>
-#include <ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>
-#include <ompl_interface/parameterization/work_space/pose_model_state_space_factory.hpp>
-#include <ompl_interface/detail/ompl_constraints.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/joint_model_state_space_factory.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/joint_model_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space_factory.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/work_space/pose_model_state_space_factory.hpp>
+#include <robin_moveit_plugins/ompl_interface/detail/ompl_constraints.hpp>
 
 using namespace std::placeholders;
 

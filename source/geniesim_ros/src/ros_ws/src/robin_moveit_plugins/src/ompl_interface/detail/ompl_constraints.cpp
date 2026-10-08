@@ -37,7 +37,7 @@
 #include <algorithm>
 #include <iterator>
 
-#include <ompl_interface/detail/ompl_constraints.hpp>
+#include <robin_moveit_plugins/ompl_interface/detail/ompl_constraints.hpp>
 #include <moveit/utils/logger.hpp>
 
 #include <tf2_eigen/tf2_eigen.hpp>
@@ -114,7 +114,7 @@ std::size_t Bounds::size() const
   return size_;
 }
 
-std::ostream& operator<<(std::ostream& os, const ompl_interface::Bounds& bounds)
+std::ostream& operator<<(std::ostream& os, const robin_ompl_interface::Bounds& bounds)
 {
   os << "Bounds:\n";
   for (std::size_t i{ 0 }; i < bounds.size(); ++i)

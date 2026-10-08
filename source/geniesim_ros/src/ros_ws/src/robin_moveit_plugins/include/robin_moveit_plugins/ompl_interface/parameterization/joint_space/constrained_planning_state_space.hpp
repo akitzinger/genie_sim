@@ -37,7 +37,7 @@
 #pragma once
 
 #include <moveit/macros/class_forward.hpp>
-#include <ompl_interface/parameterization/model_based_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/model_based_state_space.hpp>
 
 namespace robin_ompl_interface
 {

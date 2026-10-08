@@ -48,4 +48,4 @@
 
 #pragma once
 #pragma message(".h header is obsolete. Please use the .hpp header instead.")
-#include <ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>

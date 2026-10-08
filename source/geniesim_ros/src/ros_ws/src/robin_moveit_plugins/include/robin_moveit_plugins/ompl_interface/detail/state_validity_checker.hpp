@@ -47,7 +47,7 @@
 
 #pragma once
 
-#include <ompl_interface/detail/threadsafe_state_storage.hpp>
+#include <robin_moveit_plugins/ompl_interface/detail/threadsafe_state_storage.hpp>
 #include <moveit/collision_detection/collision_common.hpp>
 #include <ompl/base/StateValidityChecker.h>
 

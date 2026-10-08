@@ -40,7 +40,7 @@
 
 #include <ompl/base/Constraint.h>
 
-#include <ompl_interface/detail/threadsafe_state_storage.hpp>
+#include <robin_moveit_plugins/ompl_interface/detail/threadsafe_state_storage.hpp>
 #include <moveit/robot_model/robot_model.hpp>
 #include <moveit/macros/class_forward.hpp>
 #include <moveit_msgs/msg/constraints.hpp>

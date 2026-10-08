@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/parameterization/model_based_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/model_based_state_space.hpp>
 #include <utility>
 #include <moveit/utils/logger.hpp>
 

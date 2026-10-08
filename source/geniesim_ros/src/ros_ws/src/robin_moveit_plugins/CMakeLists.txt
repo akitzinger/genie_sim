@@ -104,6 +104,7 @@ ament_target_dependencies(robin_moveit_plugins_planner_manager_plugin
   tf2_eigen
   tf2_ros
   Boost)
+target_link_libraries(robin_moveit_plugins_planner_manager_plugin PUBLIC ompl::ompl)
 
 
 # ===========================================================================

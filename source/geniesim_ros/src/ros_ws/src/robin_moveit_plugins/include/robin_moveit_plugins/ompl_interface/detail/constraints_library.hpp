@@ -38,7 +38,7 @@
 
 #include <map>
 #include <moveit/macros/class_forward.hpp>
-#include <ompl_interface/model_based_planning_context.hpp>
+#include <robin_moveit_plugins/ompl_interface/model_based_planning_context.hpp>
 #include <moveit/kinematic_constraints/kinematic_constraint.hpp>
 #include <ompl/base/StateStorage.h>
 #include <boost/serialization/map.hpp>

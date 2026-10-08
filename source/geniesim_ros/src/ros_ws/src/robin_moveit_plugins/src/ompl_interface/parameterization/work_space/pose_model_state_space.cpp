@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/parameterization/work_space/pose_model_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/work_space/pose_model_state_space.hpp>
 #include <ompl/base/spaces/SE3StateSpace.h>
 #include <moveit/utils/logger.hpp>
 

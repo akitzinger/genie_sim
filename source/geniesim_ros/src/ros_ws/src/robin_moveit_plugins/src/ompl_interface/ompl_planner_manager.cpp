@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan, Dave Coleman */
 
-#include <ompl_interface/ompl_interface.hpp>
+#include <robin_moveit_plugins/ompl_interface/ompl_interface.hpp>
 #include <moveit/planning_interface/planning_interface.hpp>
 #include <moveit/planning_scene/planning_scene.hpp>
 #include <moveit/utils/logger.hpp>

@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/parameterization/joint_space/joint_model_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/joint_model_state_space.hpp>
 
 const std::string robin_ompl_interface::JointModelStateSpace::PARAMETERIZATION_TYPE = "JointModel";
 

@@ -34,8 +34,8 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/parameterization/work_space/pose_model_state_space_factory.hpp>
-#include <ompl_interface/parameterization/work_space/pose_model_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/work_space/pose_model_state_space_factory.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/work_space/pose_model_state_space.hpp>
 
 robin_ompl_interface::PoseModelStateSpaceFactory::PoseModelStateSpaceFactory() : ModelBasedStateSpaceFactory()
 {

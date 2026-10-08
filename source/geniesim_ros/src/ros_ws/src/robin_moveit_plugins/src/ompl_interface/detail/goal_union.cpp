@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/detail/goal_union.hpp>
+#include <robin_moveit_plugins/ompl_interface/detail/goal_union.hpp>
 #include <ompl/base/goals/GoalLazySamples.h>
 
 namespace

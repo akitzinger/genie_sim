@@ -34,8 +34,8 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/detail/constrained_sampler.hpp>
-#include <ompl_interface/model_based_planning_context.hpp>
+#include <robin_moveit_plugins/ompl_interface/detail/constrained_sampler.hpp>
+#include <robin_moveit_plugins/ompl_interface/model_based_planning_context.hpp>
 
 #include <utility>
 

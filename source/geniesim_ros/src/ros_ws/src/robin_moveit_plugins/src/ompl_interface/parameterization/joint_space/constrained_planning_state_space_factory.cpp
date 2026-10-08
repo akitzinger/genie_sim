@@ -35,8 +35,8 @@
 /* Author: Jeroen De Maeyer */
 /* Mostly copied from Ioan Sucan's code */
 
-#include <ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>
-#include <ompl_interface/parameterization/joint_space/constrained_planning_state_space_factory.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/joint_space/constrained_planning_state_space_factory.hpp>
 
 namespace robin_ompl_interface
 {

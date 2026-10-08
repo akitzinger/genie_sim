@@ -37,7 +37,7 @@
 
 #pragma once
 
-#include <ompl_interface/parameterization/model_based_state_space_factory.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/model_based_state_space_factory.hpp>
 
 namespace robin_ompl_interface
 {

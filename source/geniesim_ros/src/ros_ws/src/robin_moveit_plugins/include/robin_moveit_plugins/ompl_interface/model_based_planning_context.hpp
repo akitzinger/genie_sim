@@ -36,7 +36,7 @@
 
 #pragma once
 
-#include <ompl_interface/parameterization/model_based_state_space.hpp>
+#include <robin_moveit_plugins/ompl_interface/parameterization/model_based_state_space.hpp>
 #include <moveit/constraint_samplers/constraint_sampler_manager.hpp>
 #include <moveit/planning_interface/planning_interface.hpp>
 

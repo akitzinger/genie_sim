@@ -34,7 +34,7 @@
 
 /* Author: Ioan Sucan */
 
-#include <ompl_interface/ompl_interface.hpp>
+#include <robin_moveit_plugins/ompl_interface/ompl_interface.hpp>
 #include <moveit/robot_state/conversions.hpp>
 #include <moveit/kinematic_constraints/utils.hpp>
 #include <moveit/utils/lexical_casts.hpp>
