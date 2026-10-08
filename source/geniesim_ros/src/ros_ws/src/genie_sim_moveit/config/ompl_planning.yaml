@@ -12,7 +12,7 @@
 # OMPL knobs.
 
 planning_plugins:
-  - ompl_interface/OMPLPlanner
+  - robin_moveit_plugins/RobinOMPLPlanner
 
 request_adapters:
   - default_planning_request_adapters/ResolveConstraintFrames

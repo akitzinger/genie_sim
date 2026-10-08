@@ -70,6 +70,7 @@ ament_target_dependencies(robin_moveit_plugins_constraint_samplers_plugin
 # Moveit Planner Plugin
 # ===========================================================================
 add_library(robin_moveit_plugins_planner_manager_plugin SHARED
+  src/ompl_interface/ompl_planner_manager.cpp
   src/ompl_interface/ompl_interface.cpp
   src/ompl_interface/planning_context_manager.cpp
   src/ompl_interface/model_based_planning_context.cpp
@@ -112,7 +113,7 @@ target_link_libraries(robin_moveit_plugins_planner_manager_plugin PUBLIC ompl::o
 # ===========================================================================
 pluginlib_export_plugin_description_file(moveit_core kinematics_base_plugin_description.xml)
 pluginlib_export_plugin_description_file(moveit_core constraint_samplers_plugin_description.xml)
-pluginlib_export_plugin_description_file(moveit_planners ompl_interface_plugin_description.xml)
+pluginlib_export_plugin_description_file(moveit_core ompl_interface_plugin_description.xml)
 
 # ===========================================================================
 # Install

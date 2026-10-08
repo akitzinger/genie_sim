@@ -1,6 +1,6 @@
 <library path="robin_moveit_plugins_planner_manager_plugin">
   <class name="robin_moveit_plugins/RobinOMPLPlanner" 
-         type="robin_moveit_plugins::OMPLPlannerManager" 
+         type="robin_ompl_interface::OMPLPlannerManager"
          base_class_type="planning_interface::PlannerManager">
     <description>
     </description>
