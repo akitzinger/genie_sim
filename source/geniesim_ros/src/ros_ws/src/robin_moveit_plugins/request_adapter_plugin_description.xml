@@ -1,0 +1,9 @@
+<library path="robin_moveit_plugins_request_adapter_plugin">
+  <class name="robin_moveit_plugins/DefaultPathConstraintsAdapter"
+         type="robin_moveit_plugins::DefaultPathConstraintsAdapter"
+         base_class_type="planning_interface::PlanningRequestAdapter">
+    <description>
+      Adds default orientation and position path constraints for simple_dual_arm_l when the request has none.
+    </description>
+  </class>
+</library>

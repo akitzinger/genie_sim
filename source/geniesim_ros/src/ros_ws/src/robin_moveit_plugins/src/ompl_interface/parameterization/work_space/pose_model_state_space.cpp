@@ -54,7 +54,7 @@ const std::string PoseModelStateSpace::PARAMETERIZATION_TYPE = "PoseModel";
 
 PoseModelStateSpace::PoseModelStateSpace(const ModelBasedStateSpaceSpecification& spec) : ModelBasedStateSpace(spec)
 {
-  jump_factor_ = 5.0;  // \todo make this a param
+  jump_factor_ = 100.0;  // \todo make this a param
 
   if (spec.joint_model_group_->getGroupKinematics().first)
   {

@@ -159,9 +159,18 @@ def _launch_setup(context):
             ],
             remappings=mlu.MOVEIT_MOVE_GROUP_REMAPPINGS,
             additional_env={"DISPLAY": os.environ.get("DISPLAY", "")},
-            # ros_arguments=['--log-level', 'move_group.moveit:=DEBUG',
-            #                "--log-level", "move_group.moveit.moveit.ros.planning_scene_monitor:=info",],
+            # ros_arguments=["--log-level", "move_group:=DEBUG",
+            #                  "--log-level", "move_group.moveit.moveit.ros.planning_scene_monitor:=info",
+            #                  "--log-level", "move_group.moveit.moveit.kinematics.bio_ik_kinematics_plugin:=info",
+            #                  "--log-level", "move_group.moveit.robin_moveit_plugins.kinematics_base_plugin:=info"
+
+
+
+
+            # ],
             # prefix=["gdbserver localhost:3000"],
+            # "gdb -ex run -ex bt --args"
+            # ["gdbserver localhost:3000"],
             # emulate_tty=True,
         )
     )

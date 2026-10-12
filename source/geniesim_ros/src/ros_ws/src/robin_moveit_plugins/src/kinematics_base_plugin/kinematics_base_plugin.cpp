@@ -23,7 +23,7 @@ namespace robin_moveit_plugins
 {
   static rclcpp::Logger getLogger()
   {
-    return moveit::getLogger("robin_moveit_plugins");
+    return moveit::getLogger("robin_moveit_plugins.kinematics_base_plugin");
   }
 
   class RobinIKPlugin : public kinematics::KinematicsBase
@@ -223,9 +223,6 @@ namespace robin_moveit_plugins
             kinematics::KinematicsQueryOptions(),
         const moveit::core::RobotState *context_state = nullptr) const override
     {
-      RCLCPP_DEBUG(getLogger(), "searchPositionIK [5] called with pose: %f %f %f %f %f %f %f",
-            ik_poses[0].position.x, ik_poses[0].position.y, ik_poses[0].position.z,
-            ik_poses[0].orientation.x, ik_poses[0].orientation.y, ik_poses[0].orientation.z, ik_poses[0].orientation.w);
       
       if (ik_poses.empty())
       {
@@ -233,26 +230,43 @@ namespace robin_moveit_plugins
         return false;
       }
 
-      // Caller-supplied BioIK options take precedence over the coupled goal stack.
-      if (ik_poses.size() == 1 && !bio_ik::toBioIKKinematicsQueryOptions(&options))
+      if (!context_state)
       {
-        std::vector<geometry_msgs::msg::Pose> poses;
-        auto bio_options = makeCoupledOptions(
-            ik_poses[0], ik_seed_state, context_state, poses);
-        if (bio_options)
-        {
-          return inner_->searchPositionIK(
-              poses, ik_seed_state, timeout, consistency_limits, solution,
-              solution_callback, error_code, *bio_options);
-        }
+        RCLCPP_ERROR(
+            getLogger(),
+            "Cannot construct coupled IK goals: context_state is null.");
+        error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
+        return false;
       }
 
-      RCLCPP_WARN(getLogger(),
-          "Multiple poses in searchPositionIK!");
+      if (ik_poses.size() > 1) 
+      {
+        RCLCPP_ERROR(getLogger(),
+            "Multiple poses in searchPositionIK!");
+        error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
+        return false;
+      }
 
+      RCLCPP_DEBUG(getLogger(), "searchPositionIK [5] called with pose: %f %f %f %f %f %f %f",
+            ik_poses[0].position.x, ik_poses[0].position.y, ik_poses[0].position.z,
+            ik_poses[0].orientation.x, ik_poses[0].orientation.y, ik_poses[0].orientation.z, ik_poses[0].orientation.w);
+
+      // change target pose for synchronized bimanual manipulation
+      std::vector<geometry_msgs::msg::Pose> poses;
+      auto bio_options = makeCoupledOptions(
+          ik_poses[0], ik_seed_state, context_state, poses);
+
+      if (!bio_options)
+      {
+        error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
+        return false;
+      }
+
+      std::lock_guard<std::mutex> lock(ik_mutex_);
       return inner_->searchPositionIK(
-          ik_poses, ik_seed_state, timeout, consistency_limits, solution,
-          solution_callback, error_code, options);
+          poses, ik_seed_state, timeout, consistency_limits, solution,
+          solution_callback, error_code, *bio_options);
+
     }
 
     bool getPositionIK(
@@ -360,28 +374,18 @@ namespace robin_moveit_plugins
         const moveit::core::RobotState *context_state,
         std::vector<geometry_msgs::msg::Pose> &poses_out) const
     {
-      if (!robot_model_ || first_tip_link_.empty() || second_tip_link_.empty())
-      {
-        return nullptr;
-      }
 
-      if (context_state)
-      {
-        relative_initial_pose = context_state->getGlobalLinkTransform(first_tip_link_).inverse() *
+      // get initial relative pose from context state
+      const Eigen::Isometry3d relative_initial_pose = context_state->getGlobalLinkTransform(first_tip_link_).inverse() *
                         context_state->getGlobalLinkTransform(second_tip_link_);
 
-        RCLCPP_DEBUG(getLogger(), "Relative pose calculated. Position: %f %f %f Orientation: %f %f %f", 
-                    relative_initial_pose.translation().x(),
-                    relative_initial_pose.translation().y(),
-                    relative_initial_pose.translation().z(),
-                    relative_initial_pose.rotation().eulerAngles(0, 1, 2).x(),
-                    relative_initial_pose.rotation().eulerAngles(0, 1, 2).y(),
-                    relative_initial_pose.rotation().eulerAngles(0, 1, 2).z());
-      }
-      else
-      {
-        RCLCPP_ERROR(getLogger(), "No context state for initial relative pose received.");
-      }
+      RCLCPP_DEBUG(getLogger(), "Relative pose calculated. Position: %f %f %f Orientation: %f %f %f", 
+                  relative_initial_pose.translation().x(),
+                  relative_initial_pose.translation().y(),
+                  relative_initial_pose.translation().z(),
+                  relative_initial_pose.rotation().eulerAngles(0, 1, 2).x(),
+                  relative_initial_pose.rotation().eulerAngles(0, 1, 2).y(),
+                  relative_initial_pose.rotation().eulerAngles(0, 1, 2).z());
 
       // pose of the second tip link with respect to the first tip link
       Eigen::Isometry3d first_tip_target;
@@ -423,6 +427,7 @@ namespace robin_moveit_plugins
     rclcpp::Node::SharedPtr node_;
     std::shared_ptr<pluginlib::ClassLoader<kinematics::KinematicsBase>> loader_;
     std::shared_ptr<kinematics::KinematicsBase> inner_;
+    mutable std::mutex ik_mutex_;   // serializes access to the shared bio_ik instance
     
     std::string first_tip_link_ = "arm_l_end_link";
     std::string second_tip_link_ = "arm_r_end_link";

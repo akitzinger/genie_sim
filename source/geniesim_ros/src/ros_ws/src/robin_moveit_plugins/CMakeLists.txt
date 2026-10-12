@@ -107,6 +107,16 @@ ament_target_dependencies(robin_moveit_plugins_planner_manager_plugin
   Boost)
 target_link_libraries(robin_moveit_plugins_planner_manager_plugin PUBLIC ompl::ompl)
 
+# ===========================================================================
+# Planning Request Adapter
+# ===========================================================================
+add_library(robin_moveit_plugins_request_adapter_plugin SHARED
+  src/request_adapter/default_path_constraints_adapter.cpp
+)
+ament_target_dependencies(robin_moveit_plugins_request_adapter_plugin
+  moveit_core
+  pluginlib
+)
 
 # ===========================================================================
 # Plugin description exports
@@ -114,6 +124,7 @@ target_link_libraries(robin_moveit_plugins_planner_manager_plugin PUBLIC ompl::o
 pluginlib_export_plugin_description_file(moveit_core kinematics_base_plugin_description.xml)
 pluginlib_export_plugin_description_file(moveit_core constraint_samplers_plugin_description.xml)
 pluginlib_export_plugin_description_file(moveit_core ompl_interface_plugin_description.xml)
+pluginlib_export_plugin_description_file(moveit_core request_adapter_plugin_description.xml)
 
 # ===========================================================================
 # Install
@@ -123,6 +134,7 @@ install(
     robin_moveit_plugins_kinematics_base_plugin
     robin_moveit_plugins_constraint_samplers_plugin
     robin_moveit_plugins_planner_manager_plugin
+    robin_moveit_plugins_request_adapter_plugin
   EXPORT  ${PROJECT_NAME}Targets
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib

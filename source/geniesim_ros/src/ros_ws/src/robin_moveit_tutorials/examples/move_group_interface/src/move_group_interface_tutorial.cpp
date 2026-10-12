@@ -358,7 +358,7 @@ int main(int argc, char** argv)
 
   // Planning with constraints can be slow because every sample must call an inverse kinematics solver.
   // Let's increase the planning time from the default 5 seconds to be sure the planner has enough time to succeed.
-  move_group.setPlanningTime(300.0);
+  move_group.setPlanningTime(30.0);
 
   bool success = (move_group.plan(my_plan) == moveit::core::MoveItErrorCode::SUCCESS);
   RCLCPP_INFO(LOGGER, "Visualizing plan with constraints %s", success ? "" : "FAILED");
