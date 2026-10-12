@@ -78,12 +78,12 @@ namespace robin_moveit_plugins
       // Default fallbacks based on group name conventions if parameters are omitted
       if (first_tip_link_.empty())
       {
-        if (group_name == "simple_dual_arm_l")
+        if (group_name == "simple_dual_arm_l" || group_name == "sync_dual_arm_l")
         {
           first_tip_link_ = "arm_l_end_link";
           second_tip_link_ = "arm_r_end_link";
         }
-        else if (group_name == "simple_dual_arm_r")
+        else if (group_name == "simple_dual_arm_r" || group_name == "sync_dual_arm_r")
         {
           first_tip_link_ = "arm_r_end_link";
           second_tip_link_ = "arm_l_end_link";

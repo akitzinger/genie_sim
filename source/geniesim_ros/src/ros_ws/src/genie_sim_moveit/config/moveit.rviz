@@ -47,7 +47,7 @@ Visualization Manager:
       MoveIt_Allow_Replanning: false
       MoveIt_Allow_Sensor_Positioning: false
       MoveIt_Planning_Attempts: 1
-      MoveIt_Planning_Time: 5
+      MoveIt_Planning_Time: 30
       MoveIt_Use_Cartesian_Path: false
       MoveIt_Use_Constraint_Aware_IK: false
       MoveIt_Workspace:
@@ -371,7 +371,7 @@ Visualization Manager:
         Goal State Color: 250; 128; 0
         Interactive Marker Size: 0
         Joint Violation Color: 255; 0; 255
-        Planning Group: simple_dual_arm_l
+        Planning Group: sync_dual_arm_l
         Query Goal State: true
         Query Start State: false
         Show Workspace: false
@@ -800,10 +800,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.4153962731361389
+      Pitch: 0.5653960108757019
       Target Frame: map
       Value: Orbit (rviz_default_plugins)
-      Yaw: 5.498579025268555
+      Yaw: 5.833576202392578
     Saved: ~
 Window Geometry:
   Displays:

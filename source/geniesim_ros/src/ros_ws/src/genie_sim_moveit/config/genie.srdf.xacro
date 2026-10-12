@@ -138,6 +138,14 @@
         <group name="simple_arm_l"/>
         <group name="simple_arm_r"/>
     </group>
+    <group name="sync_dual_arm_l">
+        <group name="simple_arm_l"/>
+        <group name="simple_arm_r"/>
+    </group>
+    <group name="sync_dual_arm_r">
+        <group name="simple_arm_l"/>
+        <group name="simple_arm_r"/>
+    </group>
     <!-- Dual-arm only, no body torso DOFs, no head, no chassis. Useful when
          you want to plan reaching with both hands while keeping the torso
          and head fixed (e.g. bimanual manipulation from a parked stance).

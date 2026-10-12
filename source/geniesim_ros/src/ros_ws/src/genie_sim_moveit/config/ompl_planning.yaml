@@ -68,15 +68,27 @@ simple_arms:
 
 simple_dual_arm_l:
   default_planner_config: RRTConnectkConfigDefault
-  planner_configs: [RRTConnectkConfigDefault, RRTstarkConfigDefault]
-  longest_valid_segment_fraction: 0.005 # max step size
-  range: 0.01 # max step size
+  planner_configs: [RRTConnectkConfigDefault]
+  longest_valid_segment_fraction: 0.005 # max collision check step size
+  range: 0.01 # max planning step size
 
 simple_dual_arm_r:
   default_planner_config: RRTConnectkConfigDefault
-  planner_configs: [RRTConnectkConfigDefault, RRTstarkConfigDefault]
-  longest_valid_segment_fraction: 0.005
-  range: 0.01
+  planner_configs: [RRTConnectkConfigDefault]
+  longest_valid_segment_fraction: 0.005 # max collision check step size
+  range: 0.01 # max planning step size
+
+sync_dual_arm_l:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs: [RRTConnectkConfigDefault]
+  longest_valid_segment_fraction: 0.005 # max collision check step size
+  range: 0.01 # max planning step size
+
+sync_dual_arm_r:
+  default_planner_config: RRTConnectkConfigDefault
+  planner_configs: [RRTConnectkConfigDefault]
+  longest_valid_segment_fraction: 0.005 # max collision check step size
+  range: 0.01 # max planning step size
 
 wbc_arms:
   default_planner_config: RRTConnectkConfigDefault

@@ -25,7 +25,7 @@ rclcpp::Logger getLogger()
   return moveit::getLogger("moveit.robin_moveit_plugins.default_path_constraints_adapter");
 }
 
-constexpr char GROUP_NAME[] = "simple_dual_arm_l";
+constexpr char GROUP_NAME[] = "sync_dual_arm_l";
 constexpr char CONSTRAINT_FRAME[] = "arm_base_link";
 constexpr char CONSTRAINED_LINK[] = "arm_l_end_link";
 }  // namespace
