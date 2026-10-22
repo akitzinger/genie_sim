@@ -65,7 +65,8 @@ bool CustomSamplerAllocator::canService(const planning_scene::PlanningSceneConst
                                         const std::string& group_name,
                                         const moveit_msgs::msg::Constraints& constr) const
 {
-  return (group_name == "sync_dual_arm_l" || group_name == "sync_dual_arm_r") && scene->getRobotModel()->hasJointModelGroup(group_name);
+  return (group_name == "sync_dual_arm_l" || group_name == "sync_dual_arm_r"  || group_name == "sync_dual_arm_l_opt"  || group_name == "sync_dual_arm_r_opt"
+  ) && scene->getRobotModel()->hasJointModelGroup(group_name);
 }
 
 }  // end of namespace robin_moveit_plugins

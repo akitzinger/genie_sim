@@ -25,7 +25,7 @@ rclcpp::Logger getLogger()
   return moveit::getLogger("moveit.robin_moveit_plugins.default_path_constraints_adapter");
 }
 
-constexpr char GROUP_NAME[] = "sync_dual_arm_l";
+constexpr const char* GROUP_NAME[] = {"sync_dual_arm_l", "sync_dual_arm_l_opt"};
 constexpr char CONSTRAINT_FRAME[] = "arm_base_link";
 constexpr char CONSTRAINED_LINK[] = "arm_l_end_link";
 }  // namespace
@@ -49,8 +49,8 @@ public:
     RCLCPP_DEBUG(getLogger(), "Request BEFORE adapter:\n%s",
             moveit_msgs::msg::to_yaml(req).c_str());
 
-    if (req.group_name == GROUP_NAME && req.goal_constraints.size() == 1)
-    {
+    if ((req.group_name == GROUP_NAME[0] || req.group_name == GROUP_NAME[1]) && req.goal_constraints.size() == 1)
+     {
       auto& goal = req.goal_constraints[0];
       const bool is_joint_goal = !goal.joint_constraints.empty() &&
                                 goal.position_constraints.empty() &&
@@ -77,7 +77,7 @@ public:
       }
     }
 
-    if (req.group_name == GROUP_NAME && 
+    if ((req.group_name == GROUP_NAME[0] || req.group_name == GROUP_NAME[1]) && 
       req.path_constraints.position_constraints.empty() && 
       req.path_constraints.orientation_constraints.empty())
     {

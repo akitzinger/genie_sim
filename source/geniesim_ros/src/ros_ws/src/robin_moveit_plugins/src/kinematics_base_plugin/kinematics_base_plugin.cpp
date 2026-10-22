@@ -31,11 +31,21 @@ namespace robin_moveit_plugins
 
   class ManipGoal : public bio_ik::Goal
   {
-    
+    std::string first_tip_link_;
+    std::string second_tip_link_;
+    std::string first_arm_group_;
+    std::string second_arm_group_;
   public:
   
-    ManipGoal(double weight = 1.0, bool secondary = true)
+    ManipGoal(
+      std::string first_tip_link, std::string second_tip_link, 
+      std::string first_arm_group, std::string second_arm_group, 
+      double weight = 1.0, bool secondary = true)
     {
+        first_tip_link_ = std::move(first_tip_link);
+        second_tip_link_ = std::move(second_tip_link);
+        first_arm_group_ = std::move(first_arm_group);
+        second_arm_group_ = std::move(second_arm_group);
         weight_ = weight;
         secondary_ = secondary;
     }
@@ -108,8 +118,8 @@ namespace robin_moveit_plugins
         c.state = std::make_shared<moveit::core::RobotState>(model_ptr);
         c.model = model;
         c.solver_group = group;
-        c.arm = model->getJointModelGroup("simple_arm_l");
-        c.tip = model->getLinkModel("arm_l_end_link");
+        c.arm = model->getJointModelGroup(first_arm_group_);
+        c.tip = model->getLinkModel(first_tip_link_);
 
         c.map.clear();
         if (c.arm)
@@ -185,34 +195,28 @@ namespace robin_moveit_plugins
         }
         return false;
       }
+      for (const auto& t : inner_->getTipFrames())
+        RCLCPP_INFO(getLogger(), "[%s] inner BioIK tip: %s", group_name.c_str(), t.c_str());
 
       first_tip_link_ = getParameterString(node, "kinematics_solver_master_link");
       manip_weight_ = getParameterDouble(node, "manipulability_weight", 0.0);
 
-      // Default fallbacks based on group name conventions if parameters are omitted
-      if (first_tip_link_.empty())
+      if (first_tip_link_ == "arm_l_end_link")
       {
-        if (group_name == "simple_dual_arm_l" || group_name == "sync_dual_arm_l" || group_name == "sync_dual_arm_l_opt")
-        {
-          first_tip_link_ = "arm_l_end_link";
-          second_tip_link_ = "arm_r_end_link";
-        }
-        else if (group_name == "simple_dual_arm_r" || group_name == "sync_dual_arm_r" || group_name == "sync_dual_arm_r_opt")
-        {
-          first_tip_link_ = "arm_r_end_link";
-          second_tip_link_ = "arm_l_end_link";
-        }
+        second_tip_link_ = "arm_r_end_link";
+        first_arm_group_ = "simple_arm_l";
+        second_arm_group_ = "simple_arm_r";
+      }
+      else if (first_tip_link_ == "arm_r_end_link")
+      {
+        second_tip_link_ = "arm_l_end_link";
+        first_arm_group_ = "simple_arm_r";
+        second_arm_group_ = "simple_arm_l";
       }
       else
       {
-        if (first_tip_link_ == "arm_l_end_link")
-        {
-          second_tip_link_ = "arm_r_end_link";
-        }
-        else if (first_tip_link_ == "arm_r_end_link")
-        {
-          second_tip_link_ = "arm_l_end_link";
-        }
+        RCLCPP_ERROR(getLogger(), "Unsupported master link '%s'", first_tip_link_.c_str());
+        return false;
       }
 
       // The first tip link is considered the primary end-effector for the coupled group.
@@ -375,6 +379,11 @@ namespace robin_moveit_plugins
         error_code.val = moveit_msgs::msg::MoveItErrorCodes::NO_IK_SOLUTION;
         return false;
       }
+
+      // Align goal order with the inner BioIK plugin's tip order
+      const auto& inner_tips = inner_->getTipFrames();
+      if (inner_tips.size() == 2 && inner_tips[0] != first_tip_link_)
+        std::swap(poses[0], poses[1]);
 
       std::lock_guard<std::mutex> lock(ik_mutex_);
       return inner_->searchPositionIK(
@@ -549,7 +558,7 @@ namespace robin_moveit_plugins
       if (manip_weight_ > 0.0)
       {
         RCLCPP_DEBUG(getLogger(), "Adding ManipGoal with weight: %f", manip_weight_);
-        options.goals.emplace_back(new ManipGoal(manip_weight_, true));
+        options.goals.emplace_back(new ManipGoal(first_tip_link_, second_tip_link_, first_arm_group_, second_arm_group_, manip_weight_, true));
       }
     }
 
@@ -562,6 +571,8 @@ namespace robin_moveit_plugins
     std::string second_tip_link_ = "arm_r_end_link";
 
     double manip_weight_ = 0.0;
+    std::string first_arm_group_ = "simple_arm_l";
+    std::string second_arm_group_ = "simple_arm_r";
   };
 
 } // namespace robin_moveit_plugins
