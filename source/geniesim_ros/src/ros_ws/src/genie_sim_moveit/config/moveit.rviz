@@ -751,6 +751,20 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /move_group_tutorial
       Value: true
+    - Class: moveit_rviz_plugin/RobotState
+      Enabled: true
+      Name: RobotState
+      Robot Alpha: 0.6
+      Robot Description: robot_description
+      Robot State Topic: display_robot_state
+      Value: true
+    - Class: moveit_rviz_plugin/RobotState
+      Enabled: true
+      Name: RobotState_opt
+      Robot Alpha: 0.6
+      Robot Description: robot_description
+      Robot State Topic: display_robot_state_opt
+      Value: true
     - Class: rviz_default_plugins/TF
       Enabled: false
       Filter (blacklist): ""

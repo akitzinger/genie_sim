@@ -9,7 +9,14 @@ target_include_directories(move_group_interface_tutorial
 target_link_libraries(move_group_interface_tutorial PUBLIC moveit_ros_move_group::moveit_move_group_capabilities_base
 moveit_ros_planning_interface::moveit_move_group_interface moveit_visual_tools::moveit_visual_tools)
 
-install(TARGETS move_group_interface_tutorial
+add_executable(invers_kinematic_solver_tutorial
+    src/invers_kinematic_solver_tutorial.cpp)
+target_include_directories(invers_kinematic_solver_tutorial
+    PUBLIC include)
+target_link_libraries(invers_kinematic_solver_tutorial PUBLIC moveit_ros_move_group::moveit_move_group_capabilities_base
+moveit_ros_planning_interface::moveit_move_group_interface moveit_visual_tools::moveit_visual_tools)
+
+install(TARGETS move_group_interface_tutorial invers_kinematic_solver_tutorial
   DESTINATION lib/${PROJECT_NAME}
 )
 install(DIRECTORY launch
