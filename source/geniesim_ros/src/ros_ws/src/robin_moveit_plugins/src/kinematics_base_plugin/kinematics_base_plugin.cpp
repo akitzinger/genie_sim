@@ -1,5 +1,6 @@
 #include "robin_moveit_plugins/kinematics_base_plugin/kinematics_base_plugin.hpp"
 
+#include <bio_ik/goal.h>
 #include <bio_ik/goal_types.h>
 #include <bio_ik/bio_ik.h>
 
@@ -9,6 +10,7 @@
 #include <tf2_eigen/tf2_eigen.hpp>
 
 #include <Eigen/Geometry>
+#include <Eigen/Dense>
 #include <algorithm>
 #include <string>
 #include <utility>
@@ -25,6 +27,117 @@ namespace robin_moveit_plugins
   {
     return moveit::getLogger("robin_moveit_plugins.kinematics_base_plugin");
   }
+
+
+  class ManipGoal : public bio_ik::Goal
+  {
+    
+  public:
+  
+    ManipGoal(double weight = 1.0, bool secondary = true)
+    {
+        weight_ = weight;
+        secondary_ = secondary;
+    }
+
+    // double evaluate(const bio_ik::GoalContext& context) const override
+    // {
+    //   const moveit::core::JointModelGroup* jmg = &context.getJointModelGroup();
+    //   const moveit::core::RobotModel* model = &context.getRobotModel();
+
+    //   // One RobotState per thread, rebuilt only if the model changes
+    //   thread_local const moveit::core::RobotModel* cached_model = nullptr;
+    //   thread_local moveit::core::RobotStatePtr robot_state;
+    //   thread_local const moveit::core::JointModelGroup* arm_group = nullptr;
+    //   thread_local const moveit::core::LinkModel* tip_link = nullptr;
+    //   if (!robot_state || cached_model != model)
+    //   {
+    //     // Non-owning shared_ptr: the model outlives the IK call
+    //     moveit::core::RobotModelConstPtr model_ptr(model, [](const moveit::core::RobotModel*) {});
+    //     robot_state = std::make_shared<moveit::core::RobotState>(model_ptr);
+    //     cached_model = model;
+
+    //     arm_group = model->getJointModelGroup("simple_arm_l");
+    //     tip_link  = model->getLinkModel("arm_l_end_link");
+    //   }
+
+    //   // set joint values
+    //   for (size_t i = 0; i < context.getProblemVariableCount(); i++)
+    //     robot_state->setVariablePosition(context.getProblemVariableIndex(i),
+    //                                     context.getProblemVariablePosition(i));
+    //   // robot_state->updateLinkTransforms();
+
+    //   // compute jacobian
+    //   Eigen::MatrixXd jacobian;
+    //   robot_state->getJacobian(arm_group, tip_link,
+    //                          Eigen::Vector3d::Zero(), jacobian);
+
+    //   // Fixed-size Block, kein dynamischer Overhead
+    //   const auto Jv = jacobian.topRows<3>();
+    //   const Eigen::Matrix3d A = Jv * Jv.transpose();
+    //   const double w = std::sqrt(std::max(0.0, A.determinant()));
+
+    //   // Eigen::JacobiSVD<Eigen::MatrixXd> svd(jacobian.topRows(3), Eigen::ComputeThinU | Eigen::ComputeThinV);
+    //   // double w = svd.singularValues().prod();
+
+    //   RCLCPP_DEBUG(getLogger(), "manipulability: %f, cost: %f", w, 1.0 / (w + 1e-3));
+
+    //   return 0.0;
+    // }
+
+    double evaluate(const bio_ik::GoalContext& context) const override
+    {
+      struct Cache
+      {
+        const moveit::core::RobotModel* model = nullptr;
+        const moveit::core::JointModelGroup* solver_group = nullptr;
+        moveit::core::RobotStatePtr state;
+        const moveit::core::JointModelGroup* arm = nullptr;
+        const moveit::core::LinkModel* tip = nullptr;
+        std::vector<std::pair<size_t, int>> map;  // (problem index, variable index), arm joints only
+        Eigen::MatrixXd J;
+      };
+      thread_local Cache c;
+
+      const moveit::core::RobotModel* model = &context.getRobotModel();
+      const moveit::core::JointModelGroup* group = &context.getJointModelGroup();
+
+      if (!c.state || c.model != model || c.solver_group != group)
+      {
+        moveit::core::RobotModelConstPtr model_ptr(model, [](const moveit::core::RobotModel*) {});
+        c.state = std::make_shared<moveit::core::RobotState>(model_ptr);
+        c.model = model;
+        c.solver_group = group;
+        c.arm = model->getJointModelGroup("simple_arm_l");
+        c.tip = model->getLinkModel("arm_l_end_link");
+
+        c.map.clear();
+        if (c.arm)
+          for (size_t i = 0; i < context.getProblemVariableCount(); i++)
+          {
+            const int vi = context.getProblemVariableIndex(i);
+            if (c.arm->hasJointModel(model->getJointOfVariable(vi)->getName()))
+              c.map.emplace_back(i, vi);
+          }
+      }
+      if (!c.arm || !c.tip)
+        return 0.0;
+
+      for (const auto& [pi, vi] : c.map)
+        c.state->setVariablePosition(vi, context.getProblemVariablePosition(pi));
+
+      c.state->getJacobian(c.arm, c.tip, Eigen::Vector3d::Zero(), c.J);
+
+      const Eigen::Matrix3d A = c.J.topRows<3>() * c.J.topRows<3>().transpose();
+      const double det = A.determinant();            // = w^2
+      const double cost = -std::log(std::max(det, 0.0) + 1e-6); 
+      
+      // RCLCPP_INFO(getLogger(), "cost: %f", cost); 
+
+      return cost;
+    }
+
+  };
 
   class RobinIKPlugin : public kinematics::KinematicsBase
   {
@@ -74,16 +187,17 @@ namespace robin_moveit_plugins
       }
 
       first_tip_link_ = getParameterString(node, "kinematics_solver_master_link");
+      manip_weight_ = getParameterDouble(node, "manipulability_weight", 0.0);
 
       // Default fallbacks based on group name conventions if parameters are omitted
       if (first_tip_link_.empty())
       {
-        if (group_name == "simple_dual_arm_l" || group_name == "sync_dual_arm_l")
+        if (group_name == "simple_dual_arm_l" || group_name == "sync_dual_arm_l" || group_name == "sync_dual_arm_l_opt")
         {
           first_tip_link_ = "arm_l_end_link";
           second_tip_link_ = "arm_r_end_link";
         }
-        else if (group_name == "simple_dual_arm_r" || group_name == "sync_dual_arm_r")
+        else if (group_name == "simple_dual_arm_r" || group_name == "sync_dual_arm_r" || group_name == "sync_dual_arm_r_opt")
         {
           first_tip_link_ = "arm_r_end_link";
           second_tip_link_ = "arm_l_end_link";
@@ -323,6 +437,17 @@ namespace robin_moveit_plugins
     }
 
   private:
+    double getParameterDouble(
+        const rclcpp::Node::SharedPtr &node,
+        const std::string &name,
+        double default_value) const
+    {
+      const std::string prefix = "robot_description_kinematics." + getGroupName() + "." + name;
+      if (!node->has_parameter(prefix))
+        node->declare_parameter<double>(prefix, 0.0);
+      return node->get_parameter(prefix).as_double();
+    }
+
     std::string getParameterString(
         const rclcpp::Node::SharedPtr &node, const std::string &name) const
     {
@@ -421,7 +546,11 @@ namespace robin_moveit_plugins
     // extra goals applied on top of bio_ik's default goals
     void addCustomGoals(bio_ik::BioIKKinematicsQueryOptions &options) const
     {
-
+      if (manip_weight_ > 0.0)
+      {
+        RCLCPP_DEBUG(getLogger(), "Adding ManipGoal with weight: %f", manip_weight_);
+        options.goals.emplace_back(new ManipGoal(manip_weight_, true));
+      }
     }
 
     rclcpp::Node::SharedPtr node_;
@@ -431,6 +560,8 @@ namespace robin_moveit_plugins
     
     std::string first_tip_link_ = "arm_l_end_link";
     std::string second_tip_link_ = "arm_r_end_link";
+
+    double manip_weight_ = 0.0;
   };
 
 } // namespace robin_moveit_plugins
