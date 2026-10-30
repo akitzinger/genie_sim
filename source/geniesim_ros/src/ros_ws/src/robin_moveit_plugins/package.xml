@@ -21,6 +21,8 @@
   <depend>bio_ik</depend>
   <depend>ompl</depend>
   <depend>ament_index_cpp</depend>
+  <depend>pinocchio</depend>
+  <depend>genie_sim_robot_model</depend>
 
   <build_depend>eigen</build_depend>
   <build_depend>yaml-cpp</build_depend>

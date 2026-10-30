@@ -295,7 +295,7 @@ sync_dual_arm_l:
   mode: bio2_memetic 
   kinematics_solver_master_link: arm_l_end_link
   manipulability_weight: 0.0
-  minimal_displacement_weight: 0.0
+  minimal_displacement_weight: 1.0
   center_joints_weight: 0.0
   avoid_joint_limits_weight: 0.0
   rotation_scale: 0.5
@@ -308,7 +308,7 @@ sync_dual_arm_r:
   mode: bio2_memetic 
   kinematics_solver_master_link: arm_r_end_link
   manipulability_weight: 0.0
-  minimal_displacement_weight: 0.0
+  minimal_displacement_weight: 1.0
   center_joints_weight: 0.0
   avoid_joint_limits_weight: 0.0
   rotation_scale: 0.5
@@ -320,7 +320,7 @@ sync_dual_arm_l_opt:
   kinematics_solver_attempts: 1
   mode: bio2_memetic 
   kinematics_solver_master_link: arm_l_end_link
-  manipulability_weight: 1.0
+  manipulability_weight: 0.1
   minimal_displacement_weight: 0.0
   center_joints_weight: 0.0
   avoid_joint_limits_weight: 0.0
@@ -333,7 +333,7 @@ sync_dual_arm_r_opt:
   kinematics_solver_attempts: 1
   mode: bio2_memetic 
   kinematics_solver_master_link: arm_r_end_link
-  manipulability_weight: 1.0
+  manipulability_weight: 0.1
   minimal_displacement_weight: 0.0
   center_joints_weight: 0.0
   avoid_joint_limits_weight: 0.0

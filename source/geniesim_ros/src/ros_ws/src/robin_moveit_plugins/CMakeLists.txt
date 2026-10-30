@@ -19,12 +19,18 @@ find_package(bio_ik REQUIRED)
 find_package(ament_index_cpp REQUIRED)
 find_package(OpenMP)
 find_package(ompl REQUIRED)
+find_package(pinocchio REQUIRED)
+# moveit_core exports a bare "-lcoal", which needs the ROS multiarch lib dir on the linker path
+find_library(COAL_LIB coal REQUIRED)
+get_filename_component(COAL_LIB_DIR ${COAL_LIB} DIRECTORY)
+link_directories(${COAL_LIB_DIR})
 
 # ===========================================================================
 # BioIK + Pose Constraints Plugin
 # ===========================================================================
 add_library(robin_moveit_plugins_kinematics_base_plugin SHARED
   src/kinematics_base_plugin/kinematics_base_plugin.cpp
+  src/kinematics_base_plugin/ik_objectives.cpp
 )
 target_include_directories(robin_moveit_plugins_kinematics_base_plugin PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -34,6 +40,7 @@ target_link_libraries(robin_moveit_plugins_kinematics_base_plugin
   Eigen3::Eigen
   yaml-cpp
   bio_ik::bio_ik
+  pinocchio::pinocchio
 )
 ament_target_dependencies(robin_moveit_plugins_kinematics_base_plugin
   rclcpp

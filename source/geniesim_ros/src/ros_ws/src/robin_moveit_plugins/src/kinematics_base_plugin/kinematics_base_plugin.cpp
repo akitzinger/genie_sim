@@ -1,4 +1,5 @@
 #include "robin_moveit_plugins/kinematics_base_plugin/kinematics_base_plugin.hpp"
+#include "robin_moveit_plugins/kinematics_base_plugin/ik_objectives.hpp"
 
 #include <bio_ik/goal.h>
 #include <bio_ik/goal_types.h>
@@ -12,6 +13,7 @@
 #include <Eigen/Geometry>
 #include <Eigen/Dense>
 #include <algorithm>
+#include <chrono>
 #include <string>
 #include <utility>
 #include <vector>
@@ -35,6 +37,28 @@ namespace robin_moveit_plugins
     std::string second_tip_link_;
     std::string first_arm_group_;
     std::string second_arm_group_;
+
+    mutable std::once_flag init_flag_;
+    mutable std::vector<size_t> first_idx_, second_idx_;
+
+    void initIndices(const bio_ik::GoalContext& context) const
+    {
+        const auto& model = context.getRobotModel();
+        const auto* first  = model.getJointModelGroup(first_arm_group_);
+        const auto* second = model.getJointModelGroup(second_arm_group_);
+
+        for (size_t i = 0; i < context.getProblemVariableCount(); i++)
+        {
+            const int vi = context.getProblemVariableIndex(i);
+            const std::string& joint = model.getJointOfVariable(vi)->getName();
+
+            if (first && first->hasJointModel(joint))
+                first_idx_.push_back(i);
+            else if (second && second->hasJointModel(joint))
+                second_idx_.push_back(i);
+        }
+    }
+
   public:
   
     ManipGoal(
@@ -95,56 +119,74 @@ namespace robin_moveit_plugins
     //   return 0.0;
     // }
 
+    // double evaluate(const bio_ik::GoalContext& context) const override
+    // {
+    //   struct Cache
+    //   {
+    //     const moveit::core::RobotModel* model = nullptr;
+    //     const moveit::core::JointModelGroup* solver_group = nullptr;
+    //     moveit::core::RobotStatePtr state;
+    //     const moveit::core::JointModelGroup* arm = nullptr;
+    //     const moveit::core::LinkModel* tip = nullptr;
+    //     std::vector<std::pair<size_t, int>> map;  // (problem index, variable index), arm joints only
+    //     Eigen::MatrixXd J;
+    //   };
+    //   thread_local Cache c;
+
+    //   const moveit::core::RobotModel* model = &context.getRobotModel();
+    //   const moveit::core::JointModelGroup* group = &context.getJointModelGroup();
+
+    //   if (!c.state || c.model != model || c.solver_group != group)
+    //   {
+    //     moveit::core::RobotModelConstPtr model_ptr(model, [](const moveit::core::RobotModel*) {});
+    //     c.state = std::make_shared<moveit::core::RobotState>(model_ptr);
+    //     c.model = model;
+    //     c.solver_group = group;
+    //     c.arm = model->getJointModelGroup(first_arm_group_);
+    //     c.tip = model->getLinkModel(first_tip_link_);
+
+    //     c.map.clear();
+    //     if (c.arm)
+    //       for (size_t i = 0; i < context.getProblemVariableCount(); i++)
+    //       {
+    //         const int vi = context.getProblemVariableIndex(i);
+    //         if (c.arm->hasJointModel(model->getJointOfVariable(vi)->getName()))
+    //           c.map.emplace_back(i, vi);
+    //       }
+    //   }
+    //   if (!c.arm || !c.tip)
+    //     return 0.0;
+
+    //   for (const auto& [pi, vi] : c.map)
+    //     c.state->setVariablePosition(vi, context.getProblemVariablePosition(pi));
+
+    //   c.state->getJacobian(c.arm, c.tip, Eigen::Vector3d::Zero(), c.J);
+
+    //   const Eigen::Matrix3d A = c.J.topRows<3>() * c.J.topRows<3>().transpose();
+    //   const double det = A.determinant();            // = w^2
+    //   const double cost = -std::log(std::max(det, 0.0) + 1e-6); 
+      
+    //   // RCLCPP_INFO(getLogger(), "cost: %f", cost); 
+
+    //   return cost;
+    // }
+
     double evaluate(const bio_ik::GoalContext& context) const override
     {
-      struct Cache
-      {
-        const moveit::core::RobotModel* model = nullptr;
-        const moveit::core::JointModelGroup* solver_group = nullptr;
-        moveit::core::RobotStatePtr state;
-        const moveit::core::JointModelGroup* arm = nullptr;
-        const moveit::core::LinkModel* tip = nullptr;
-        std::vector<std::pair<size_t, int>> map;  // (problem index, variable index), arm joints only
-        Eigen::MatrixXd J;
-      };
-      thread_local Cache c;
+        std::call_once(init_flag_, [&] { initIndices(context); });
 
-      const moveit::core::RobotModel* model = &context.getRobotModel();
-      const moveit::core::JointModelGroup* group = &context.getJointModelGroup();
+        constexpr size_t kArmDof = 7;
+        if (first_idx_.size() != kArmDof || second_idx_.size() != kArmDof)
+            return 0.0;
 
-      if (!c.state || c.model != model || c.solver_group != group)
-      {
-        moveit::core::RobotModelConstPtr model_ptr(model, [](const moveit::core::RobotModel*) {});
-        c.state = std::make_shared<moveit::core::RobotState>(model_ptr);
-        c.model = model;
-        c.solver_group = group;
-        c.arm = model->getJointModelGroup(first_arm_group_);
-        c.tip = model->getLinkModel(first_tip_link_);
+        double q1[kArmDof], q2[kArmDof];
+        for (size_t k = 0; k < kArmDof; k++)
+        {
+            q1[k] = context.getProblemVariablePosition(first_idx_[k]);
+            q2[k] = context.getProblemVariablePosition(second_idx_[k]);
+        }
 
-        c.map.clear();
-        if (c.arm)
-          for (size_t i = 0; i < context.getProblemVariableCount(); i++)
-          {
-            const int vi = context.getProblemVariableIndex(i);
-            if (c.arm->hasJointModel(model->getJointOfVariable(vi)->getName()))
-              c.map.emplace_back(i, vi);
-          }
-      }
-      if (!c.arm || !c.tip)
-        return 0.0;
-
-      for (const auto& [pi, vi] : c.map)
-        c.state->setVariablePosition(vi, context.getProblemVariablePosition(pi));
-
-      c.state->getJacobian(c.arm, c.tip, Eigen::Vector3d::Zero(), c.J);
-
-      const Eigen::Matrix3d A = c.J.topRows<3>() * c.J.topRows<3>().transpose();
-      const double det = A.determinant();            // = w^2
-      const double cost = -std::log(std::max(det, 0.0) + 1e-6); 
-      
-      // RCLCPP_INFO(getLogger(), "cost: %f", cost); 
-
-      return cost;
+        return evalDualArmForceManipulability(q1, q2);
     }
 
   };
@@ -197,6 +239,9 @@ namespace robin_moveit_plugins
       }
       for (const auto& t : inner_->getTipFrames())
         RCLCPP_INFO(getLogger(), "[%s] inner BioIK tip: %s", group_name.c_str(), t.c_str());
+
+      // Loads the URDF and builds the pinocchio model now, so the first IK call doesn't pay for it.
+      evalDualArmForceManipulability(std::vector<double>(7, 0.0), std::vector<double>(7, 0.0));
 
       first_tip_link_ = getParameterString(node, "kinematics_solver_master_link");
       manip_weight_ = getParameterDouble(node, "manipulability_weight", 0.0);
