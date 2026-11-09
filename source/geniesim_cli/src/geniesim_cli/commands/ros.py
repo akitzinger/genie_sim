@@ -32,7 +32,9 @@ from geniesim_cli._workspace import ros_workspace_root
 _COMMON_BUILD_ARGS: tuple[str, ...] = (
     "--merge-install",
     "--parallel-workers",
-    "8",
+    "1",
+    "--executor",
+    "sequential"
 )
 
 _DEV_PROFILE: dict = {

@@ -88,6 +88,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         jq \
         vim \
         tmuxinator \
+        gdb \
+        gdbserver \
         acl \
         locales \
         software-properties-common \
